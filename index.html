@@ -2,147 +2,161 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Infinity Studio | Blueprints Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinity Studio | Editor v1</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://tamats.com/projects/litegraph/css/litegraph.css">
-    <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
 
     <style>
-        :root { --bg: #0a0a0a; --panel: #161618; --orange: #f29979; --blue: #3498db; }
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; }
+        :root { --bg: #0a0a0a; --panel: #161618; --orange: #f29979; --border: #2c2c2e; }
+        body { margin: 0; background: var(--bg); color: white; font-family: -apple-system, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
-        header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #222; z-index: 10; }
+        header { height: 45px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); z-index: 100; }
         
-        .main-container { display: flex; height: calc(100% - 50px); }
+        .editor-layout { flex: 1; display: flex; position: relative; }
 
-        /* Zones de travail */
-        #viewport-3d { flex: 1; background: #000; position: relative; }
-        #blueprint-canvas { flex: 1; background: #111; display: none; }
+        /* Hiérarchie à gauche */
+        .hierarchy { width: 220px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
+        .hierarchy-header { padding: 10px; font-size: 11px; color: #8e8e93; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
+        #scene-tree { list-style: none; padding: 0; margin: 0; font-size: 13px; overflow-y: auto; }
+        .tree-item { padding: 8px 15px; cursor: pointer; border-left: 3px solid transparent; display: flex; align-items: center; gap: 8px; }
+        .tree-item:hover { background: #252525; }
+        .tree-item.selected { background: #2c2c2e; border-left-color: var(--orange); color: var(--orange); }
 
-        /* Sidebar Propriétés */
-        .inspector { width: 250px; background: var(--panel); border-left: 1px solid #222; padding: 15px; }
+        /* Viewport 3D */
+        #viewport { flex: 1; position: relative; background: #000; touch-action: none; }
 
-        .btn-mode { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: 1px solid #333; background: #222; color: #888; font-size: 12px; }
-        .btn-mode.active { border-color: var(--orange); color: var(--orange); font-weight: bold; }
-        
-        .publish-btn { background: var(--orange); color: black; border: none; padding: 8px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        /* Boutons d'outils flottants (Mobile Friendly) */
+        .floating-tools { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 10px; }
+        .tool-btn { width: 45px; height: 45px; background: var(--panel); border: 1px solid var(--border); color: white; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .tool-btn:active { transform: scale(0.9); background: var(--orange); color: black; }
+
+        .btn-pub { background: var(--orange); border: none; padding: 6px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 900; letter-spacing: 1px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
-    <div style="display:flex; gap:10px;">
-        <button id="tab-3d" class="btn-mode active" onclick="setMode('3d')">VIEWPORT 3D</button>
-        <button id="tab-blueprints" class="btn-mode" onclick="setMode('blueprints')">BLUEPRINTS</button>
-    </div>
-    <button class="publish-btn">PUBLIER LE JEU</button>
+    <div style="font-weight: 900; font-size: 14px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
+    <button class="btn-pub">PUBLIER</button>
 </header>
 
-<div class="main-container">
-    <div id="viewport-3d"></div>
-
-    <canvas id="blueprint-canvas"></canvas>
-
-    <aside class="inspector">
-        <h4 style="margin-top:0; color:var(--orange)">DÉTAILS</h4>
-        <div id="outliner" style="font-size:12px; color:#aaa;">
-            <p>• SceneRoot</p>
-            <p>• DirectionalLight</p>
-            <p style="color:white">• Cube_01 (Selected)</p>
-        </div>
-        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
-        <label style="font-size:10px; display:block; margin-bottom:5px;">TRANSFORM</label>
-        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
-            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
-            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
-            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
-        </div>
+<div class="editor-layout">
+    <aside class="hierarchy">
+        <div class="hierarchy-header">Scène / Hiérarchie</div>
+        <ul id="scene-tree">
+            </ul>
     </aside>
+
+    <main id="viewport">
+        <div class="floating-tools">
+            <button class="tool-btn" onclick="addMesh('cube')">📦</button>
+            <button class="tool-btn" onclick="addMesh('sphere')">🔴</button>
+        </div>
+    </main>
 </div>
 
 <script>
-    // --- 1. MOTEUR 3D (Three.js) ---
+    // --- INITIALISATION ---
+    const viewport = document.getElementById('viewport');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    scene.background = new THREE.Color(0x0f0f0f);
+
+    const camera = new THREE.PerspectiveCamera(75, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
+    camera.position.set(5, 5, 5);
+
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    const view3d = document.getElementById('viewport-3d');
-    
-    renderer.setSize(view3d.clientWidth, view3d.clientHeight);
-    view3d.appendChild(renderer.domElement);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+    viewport.appendChild(renderer.domElement);
 
-    // Cube de démo
-    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
-    const material = new THREE.MeshStandardMaterial({ color: 0xf29979 });
-    const cube = new THREE.Mesh(geometry, material);
-    scene.add(cube);
+    // Lumières & Grille
+    scene.add(new THREE.GridHelper(20, 20, 0x444444, 0x222222));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
+    sun.position.set(5, 10, 5);
+    scene.add(sun);
 
-    const ambientLight = new THREE.AmbientLight(0x404040);
-    scene.add(ambientLight);
-    const pointLight = new THREE.PointLight(0xffffff, 1, 100);
-    pointLight.position.set(5, 5, 5);
-    scene.add(pointLight);
+    // --- CONTRÔLES ---
+    // OrbitControls : Caméra (rotation avec 1 doigt, pan avec 2)
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
 
-    camera.position.z = 5;
+    // TransformControls : Manipulation des objets (Gizmos)
+    const transformControl = new THREE.TransformControls(camera, renderer.domElement);
+    scene.add(transformControl);
 
+    // Désactiver la caméra quand on touche le Gizmo
+    transformControl.addEventListener('dragging-changed', (event) => {
+        controls.enabled = !event.value;
+    });
+
+    // --- LOGIQUE ÉDITEUR ---
+    let objects = [];
+    let selectedObject = null;
+
+    function addMesh(type) {
+        let geo = (type === 'cube') ? new THREE.BoxGeometry(1, 1, 1) : new THREE.SphereGeometry(0.7, 32, 32);
+        let mat = new THREE.MeshStandardMaterial({ color: 0xf29979 });
+        let mesh = new THREE.Mesh(geo, mat);
+        
+        mesh.name = type.charAt(0).toUpperCase() + type.slice(1) + "_" + (objects.length + 1);
+        scene.add(mesh);
+        objects.push(mesh);
+        
+        updateHierarchy();
+        selectObject(mesh);
+    }
+
+    function selectObject(obj) {
+        selectedObject = obj;
+        transformControl.attach(obj);
+        updateHierarchy();
+    }
+
+    function updateHierarchy() {
+        const tree = document.getElementById('scene-tree');
+        tree.innerHTML = "";
+        objects.forEach(obj => {
+            const li = document.createElement('li');
+            li.className = "tree-item" + (selectedObject === obj ? " selected" : "");
+            li.innerHTML = `<span>${obj.type === 'Mesh' ? '🔹' : '🔸'}</span> ${obj.name}`;
+            li.onclick = () => selectObject(obj);
+            tree.appendChild(li);
+        });
+    }
+
+    // Sélection au clic (Raycaster)
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    viewport.addEventListener('pointerdown', (e) => {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(objects);
+
+        if (intersects.length > 0) {
+            selectObject(intersects[0].object);
+        }
+    });
+
+    // Boucle de rendu
     function animate() {
         requestAnimationFrame(animate);
-        cube.rotation.x += 0.01;
-        cube.rotation.y += 0.01;
+        controls.update();
         renderer.render(scene, camera);
     }
     animate();
 
-    // --- 2. MOTEUR BLUEPRINTS (LiteGraph) ---
-    const graph = new LGraph();
-    const canvas = new LGraphCanvas("#blueprint-canvas", graph);
-    
-    // Ajuster la taille du canvas
-    function resizeBlueprints() {
-        const parent = document.getElementById('blueprint-canvas').parentElement;
-        canvas.resize(parent.clientWidth - 250, parent.clientHeight);
-    }
-
-    // Création de nœuds personnalisés type "Unreal"
-    function createDemoNodes() {
-        const node_event = LiteGraph.createNode("events/on_tick");
-        node_event.pos = [100, 100];
-        graph.add(node_event);
-
-        const node_move = LiteGraph.createNode("geometry/transform");
-        node_move.pos = [400, 100];
-        graph.add(node_move);
-
-        node_event.connect(0, node_move, 0);
-    }
-    createDemoNodes();
-
-    // --- 3. GESTION DES MODES ---
-    function setMode(mode) {
-        const v3d = document.getElementById('viewport-3d');
-        const vbp = document.getElementById('blueprint-canvas');
-        const t3d = document.getElementById('tab-3d');
-        const tbp = document.getElementById('tab-blueprints');
-
-        if (mode === '3d') {
-            v3d.style.display = 'block';
-            vbp.style.display = 'none';
-            t3d.classList.add('active');
-            tbp.classList.remove('active');
-        } else {
-            v3d.style.display = 'none';
-            vbp.style.display = 'block';
-            t3d.classList.remove('active');
-            tbp.classList.add('active');
-            resizeBlueprints();
-        }
-    }
-
+    // Responsive
     window.addEventListener('resize', () => {
-        renderer.setSize(view3d.clientWidth, view3d.clientHeight);
-        camera.aspect = view3d.clientWidth / view3d.clientHeight;
+        camera.aspect = viewport.clientWidth / viewport.clientHeight;
         camera.updateProjectionMatrix();
-        resizeBlueprints();
+        renderer.setSize(viewport.clientWidth, viewport.clientHeight);
     });
 </script>
 </body>
