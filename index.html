@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinity Studio | Accueil</title>
+    <style>
+        :root { --bg: #050505; --panel: #121214; --orange: #f29979; --border: #252528; }
+        body {
+            margin: 0; background: var(--bg); color: white;
+            font-family: 'Inter', sans-serif; display: flex;
+            flex-direction: column; align-items: center; justify-content: center;
+            height: 100vh;
+        }
+        .container { width: 90%; max-width: 400px; text-align: center; }
+        .logo { font-weight: 900; font-size: 32px; margin-bottom: 40px; }
+        .logo span { color: var(--orange); }
+
+        .card {
+            background: var(--panel); border: 1px solid var(--border);
+            padding: 30px; border-radius: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        input {
+            width: 100%; background: #000; border: 1px solid var(--border);
+            padding: 15px; border-radius: 10px; color: white;
+            margin-bottom: 20px; font-size: 16px; outline: none;
+        }
+        input:focus { border-color: var(--orange); }
+
+        .create-btn {
+            width: 100%; background: var(--orange); color: black;
+            border: none; padding: 15px; border-radius: 10px;
+            font-weight: bold; font-size: 16px; cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .create-btn:active { transform: scale(0.95); }
+
+        .recent-projects {
+            margin-top: 30px; width: 100%; text-align: left;
+        }
+        .project-item {
+            padding: 15px; background: #18181b; border-radius: 10px;
+            margin-bottom: 10px; border: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="logo">INFINITY<span>STUDIO</span></div>
+
+        <div class="card">
+            <h2 style="font-size: 18px; margin-bottom: 20px;">Nouveau Projet</h2>
+            <input type="text" id="gameName" placeholder="Nom de ton univers..." autocomplete="off">
+            <button class="create-btn" onclick="startEditor()">CRÉER L'ÉDITEUR</button>
+        </div>
+
+        <div class="recent-projects">
+            <p style="color: #555; font-size: 12px; font-weight: bold; text-transform: uppercase;">Continuer l'édition</p>
+            <div id="project-list">
+                <div class="project-item" style="color: #444; justify-content: center;">Aucun projet récent</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function startEditor() {
+            const name = document.getElementById('gameName').value;
+            if(!name) {
+                alert("Donne un nom à ton jeu !");
+                return;
+            }
+            // On passe le nom dans l'URL pour que l'éditeur le récupère
+            window.location.href = `editor.html?name=${encodeURIComponent(name)}`;
+        }
+    </script>
+</body>
+</html>
