@@ -2,163 +2,182 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Infinity Studio | High-Res Blueprints</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinity Studio | Ultra HD Engine</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     
-    <link rel="stylesheet" type="text/css" href="https://tamats.com/projects/litegraph/css/litegraph.css">
-    <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
-
     <style>
-        :root { --bg: #0b0b0d; --panel: #141417; --orange: #f29979; --border: #252528; }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Inter', 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        :root { --bg: #050505; --panel: #121214; --orange: #f29979; --border: #252528; }
+        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
         
-        header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); }
+        body, html { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            background: var(--bg); color: white; font-family: 'Inter', sans-serif;
+            overflow: hidden;
+        }
 
-        /* Navigation Modes */
-        .mode-tabs { display: flex; gap: 5px; background: #000; padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
-        .tab-btn { padding: 6px 20px; border-radius: 7px; cursor: pointer; border: none; background: transparent; color: #666; font-size: 12px; font-weight: 600; transition: 0.2s; }
-        .tab-btn.active { background: #1e1e21; color: var(--orange); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-
-        .editor-container { flex: 1; display: flex; overflow: hidden; }
-
-        /* Hiérarchie Pro */
-        .sidebar { width: 240px; background: var(--panel); border-right: 1px solid var(--border); }
-        .sidebar-title { padding: 12px; font-size: 10px; color: #555; text-transform: uppercase; font-weight: 800; border-bottom: 1px solid var(--border); }
-        .obj-item { padding: 10px 15px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #1a1a1d; display: flex; align-items: center; gap: 10px; }
-        .obj-item:hover { background: #1c1c1f; }
-        .obj-item.selected { background: #222226; color: var(--orange); }
-
-        /* Zone de travail HD */
-        .workspace { flex: 1; position: relative; }
-        #viewport-3d, #blueprint-canvas { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
+        /* Layout Adaptatif */
+        .app-container { display: flex; flex-direction: column; height: 100%; }
         
-        /* Customisation LiteGraph pour qualité "Unreal" */
-        .litegraph .lgraphcanvas { background-color: #0e0e10 !important; }
-        /* On force le lissage des polices */
-        canvas { image-rendering: -webkit-optimize-contrast; font-smoothing: antialiased; }
+        header { 
+            height: 50px; background: var(--panel); display: flex; 
+            align-items: center; justify-content: space-between; 
+            padding: 0 15px; border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .main-editor { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+        /* Sidebar responsive (cachée sur petit mobile si besoin) */
+        .sidebar { 
+            width: 220px; background: var(--panel); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column;
+        }
+
+        @media (max-width: 768px) { .sidebar { width: 150px; } }
+
+        /* Viewport avec support Retina */
+        .viewport-container { flex: 1; position: relative; background: #000; }
+        canvas { width: 100% !important; height: 100% !important; display: block; }
+
+        /* No-Code Overlay (Le graphe de noeuds) */
+        #node-editor {
+            position: absolute; inset: 0; background: rgba(10,10,10,0.9);
+            display: none; z-index: 50;
+        }
+
+        /* Interface de contrôle */
+        .mode-selector {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(20,20,22,0.9); padding: 5px; border-radius: 12px;
+            display: flex; gap: 5px; border: 1px solid var(--border); backdrop-filter: blur(10px);
+        }
+
+        .btn {
+            padding: 10px 20px; border-radius: 8px; border: none;
+            background: transparent; color: #666; font-weight: bold; cursor: pointer;
+        }
+        .btn.active { background: var(--orange); color: black; }
+
+        /* Style des Noeuds SVG (Ultra Net) */
+        .node {
+            position: absolute; background: #1e1e21; border: 2px solid #333;
+            border-radius: 8px; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            cursor: grab; touch-action: none;
+        }
+        .node-header { 
+            padding: 8px; background: rgba(242, 153, 121, 0.2); 
+            border-bottom: 1px solid #333; font-size: 11px; font-weight: bold;
+            color: var(--orange); border-radius: 6px 6px 0 0;
+        }
     </style>
 </head>
 <body>
 
-<header>
-    <div style="font-weight: 900; letter-spacing: 1px; font-size: 18px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
-    
-    <div class="mode-tabs">
-        <button id="btn-3d" class="tab-btn active" onclick="switchView('3d')">VIEWPORT</button>
-        <button id="btn-bp" class="tab-btn" onclick="switchView('bp')">BLUEPRINTS</button>
+<div class="app-container">
+    <header>
+        <div style="font-weight: 900; color: var(--orange)">INFINITY STUDIO</div>
+        <button onclick="publish()" style="background:var(--orange); border:none; padding:5px 15px; border-radius:5px; font-weight:bold;">PUBLIER</button>
+    </header>
+
+    <div class="main-editor">
+        <aside class="sidebar">
+            <div style="padding:10px; font-size:10px; opacity:0.5;">HIÉRARCHIE</div>
+            <div id="outliner" style="padding:10px; font-size:13px;">
+                <div>🔹 SceneRoot</div>
+                <div style="color:var(--orange)">📦 Cube_01</div>
+            </div>
+        </aside>
+
+        <main class="viewport-container">
+            <div id="viewport-3d"></div>
+            
+            <div id="node-editor">
+                <svg id="connections" style="position:absolute; width:100%; height:100%; pointer-events:none;"></svg>
+            </div>
+
+            <div class="mode-selector">
+                <button id="btn-3d" class="btn active" onclick="setMode('3d')">3D</button>
+                <button id="btn-bp" class="btn" onclick="setMode('bp')">SCRIPT</button>
+            </div>
+        </main>
     </div>
-
-    <button onclick="addCube()" style="background:var(--orange); border:none; padding:8px 18px; border-radius:6px; font-weight:bold; cursor:pointer;">PUBLIER</button>
-</header>
-
-<div class="editor-container">
-    <aside class="sidebar">
-        <div class="sidebar-title">Outliner</div>
-        <div id="obj-list"></div>
-    </aside>
-
-    <main class="workspace">
-        <div id="viewport-3d"></div>
-        <canvas id="blueprint-canvas"></canvas>
-    </main>
 </div>
 
 <script>
-    // --- INITIALISATION 3D ---
+    // --- SETUP 3D HD ---
     const vp = document.getElementById('viewport-3d');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0e0e10);
     const camera = new THREE.PerspectiveCamera(75, vp.clientWidth / vp.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    renderer.setPixelRatio(window.devicePixelRatio); // FIX QUALITÉ ÉCRAN
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    
+    // Correction du flou : on s'adapte à la densité de pixels de l'écran
+    const pixelRatio = window.devicePixelRatio;
+    renderer.setPixelRatio(pixelRatio);
     renderer.setSize(vp.clientWidth, vp.clientHeight);
     vp.appendChild(renderer.domElement);
 
-    camera.position.set(3, 3, 3);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x1a1a1a));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
-
-    // --- SYSTÈME DE NOEUDS APPROFONDI (Blueprints) ---
-    const graph = new LGraph();
-    const canvas = new LGraphCanvas("#blueprint-canvas", graph);
+    scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
     
-    // Style des Noeuds "Unreal"
-    LiteGraph.NODE_TITLE_HEIGHT = 30;
-    LiteGraph.NODE_SLOT_HEIGHT = 20;
-    LiteGraph.NODE_WIDTH = 160;
-    canvas.title_text_font = "bold 12px Inter";
-    canvas.inner_text_font = "normal 10px Inter";
-    canvas.render_shadows = true;
-    canvas.highprecision_render = true; // FORCE LA QUALITÉ HD
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
+    scene.add(cube);
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
+    camera.position.set(3,3,3);
 
-    // Création de Noeuds Basiques Utiles
-    function setupBlueprints() {
-        // Noeud : Quand le jeu commence
-        function EventStart() { this.addOutput("Exec", LiteGraph.EVENT); }
-        EventStart.title = "Begin Play";
-        EventStart.title_color = "#3d85c6"; // Bleu Unreal
-        LiteGraph.registerNodeType("events/begin_play", EventStart);
+    // --- SYSTEME DE NOEUDS HD (SVG + DOM) ---
+    const nodeArea = document.getElementById('node-editor');
+    
+    function createNode(title, x, y, color) {
+        const node = document.createElement('div');
+        node.className = 'node';
+        node.style.left = x + 'px';
+        node.style.top = y + 'px';
+        node.innerHTML = `
+            <div class="node-header" style="color:${color}">${title}</div>
+            <div style="padding:15px; font-size:10px;">
+                <div style="display:flex; justify-content:space-between;">
+                    <span>▶ Input</span>
+                    <span>Output ●</span>
+                </div>
+            </div>
+        `;
 
-        // Noeud : Déplacer Objet
-        function MoveTo() {
-            this.addInput("Exec", LiteGraph.ACTION);
-            this.addInput("Target", "string");
-            this.addInput("X", "number");
-            this.addProperty("speed", 1.0);
-        }
-        MoveTo.title = "Set Actor Location";
-        MoveTo.title_color = "#38761d"; // Vert Action
-        LiteGraph.registerNodeType("actions/move_to", MoveTo);
+        // Gestion du déplacement (Mouse + Touch)
+        let isDragging = false;
+        node.addEventListener('pointerdown', (e) => {
+            isDragging = true;
+            node.style.zIndex = 1000;
+            node.setPointerCapture(e.pointerId);
+        });
 
-        // Noeud : Variable Vitesse
-        function FloatValue() {
-            this.addOutput("Value", "number");
-            this.addProperty("val", 5.0);
-            this.widget = this.addWidget("number","Vitesse", 5, (v) => { this.properties.val = v; });
-        }
-        FloatValue.title = "Float Variable";
-        LiteGraph.registerNodeType("math/float", FloatValue);
+        node.addEventListener('pointermove', (e) => {
+            if (!isDragging) return;
+            const parent = nodeArea.getBoundingClientRect();
+            node.style.left = (e.clientX - parent.left - 75) + 'px';
+            node.style.top = (e.clientY - parent.top - 20) + 'px';
+        });
 
-        // Exemple de graph par défaut
-        const n1 = LiteGraph.createNode("events/begin_play"); n1.pos = [50, 100]; graph.add(n1);
-        const n2 = LiteGraph.createNode("actions/move_to"); n2.pos = [300, 100]; graph.add(n2);
-        const n3 = LiteGraph.createNode("math/float"); n3.pos = [50, 200]; graph.add(n3);
-        
-        n1.connect(0, n2, 0);
-        n3.connect(0, n2, 2);
+        node.addEventListener('pointerup', (e) => {
+            isDragging = false;
+            node.releasePointerCapture(e.pointerId);
+        });
+
+        nodeArea.appendChild(node);
     }
-    setupBlueprints();
 
-    // --- GESTION DES VUES ---
-    function switchView(mode) {
+    // Création des noeuds initiaux
+    createNode("EVENT: START", 100, 100, "#3498db");
+    createNode("ACTION: MOVE", 350, 150, "#2ecc71");
+
+    // --- LOGIQUE INTERFACE ---
+    function setMode(mode) {
         const is3D = mode === '3d';
-        document.getElementById('viewport-3d').style.display = is3D ? 'block' : 'none';
-        document.getElementById('blueprint-canvas').style.display = is3D ? 'none' : 'block';
-        document.getElementById('btn-3d').className = 'tab-btn' + (is3D ? ' active' : '');
-        document.getElementById('btn-bp').className = 'tab-btn' + (!is3D ? ' active' : '');
-        
-        if(!is3D) {
-            canvas.resize(); // Recalcule la taille pour éviter le flou
-        }
-    }
-
-    function addCube() {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:0xf29979}));
-        mesh.name = "Cube_" + Math.floor(Math.random()*100);
-        scene.add(mesh);
-        updateList();
-    }
-
-    function updateList() {
-        const list = document.getElementById('obj-list');
-        list.innerHTML = scene.children.filter(c => c.type === "Mesh").map(m => `
-            <div class="obj-item">📦 ${m.name}</div>
-        `).join('');
+        document.getElementById('node-editor').style.display = is3D ? 'none' : 'block';
+        document.getElementById('btn-3d').className = 'btn' + (is3D ? ' active' : '');
+        document.getElementById('btn-bp').className = 'btn' + (!is3D ? ' active' : '');
     }
 
     function animate() {
@@ -167,13 +186,16 @@
     }
     animate();
 
-    // Gestion du Resize pour garder la netteté
-    window.onresize = () => {
-        renderer.setSize(vp.clientWidth, vp.clientHeight);
-        camera.aspect = vp.clientWidth / vp.clientHeight;
+    // Redimensionnement automatique
+    window.addEventListener('resize', () => {
+        const w = vp.clientWidth;
+        const h = vp.clientHeight;
+        camera.aspect = w / h;
         camera.updateProjectionMatrix();
-        canvas.resize();
-    };
+        renderer.setSize(w, h);
+    });
+
+    function publish() { alert("Projet Infinity publié avec succès !"); }
 </script>
 </body>
 </html>
