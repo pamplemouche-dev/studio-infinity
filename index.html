@@ -2,108 +2,148 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Infinity Studio | Engine</title>
+    <title>Infinity Studio | Blueprints Edition</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://tamats.com/projects/litegraph/css/litegraph.css">
+    <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
+
     <style>
-        :root { --bg: #0a0a0a; --panel: #161618; --orange: #f29979; }
-        body { margin: 0; background: var(--bg); color: white; font-family: system-ui; display: flex; height: 100vh; flex-direction: column; }
-        header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #222; }
-        .editor { flex: 1; display: flex; }
-        .tools { width: 70px; background: var(--panel); border-right: 1px solid #222; display: flex; flex-direction: column; align-items: center; padding-top: 20px; gap: 20px; }
-        .viewport { flex: 1; position: relative; background-image: radial-gradient(#222 1px, transparent 1px); background-size: 30px 30px; overflow: hidden; }
-        .inspector { width: 260px; background: var(--panel); border-left: 1px solid #222; padding: 20px; }
+        :root { --bg: #0a0a0a; --panel: #161618; --orange: #f29979; --blue: #3498db; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; }
         
-        .obj { position: absolute; border: 2px solid transparent; cursor: grab; transition: border 0.1s; }
-        .obj:active { cursor: grabbing; }
-        .selected { border-color: var(--orange) !important; box-shadow: 0 0 15px rgba(242, 153, 121, 0.3); }
+        header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; border-bottom: 1px solid #222; z-index: 10; }
         
-        .btn-save { background: var(--orange); border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .main-container { display: flex; height: calc(100% - 50px); }
+
+        /* Zones de travail */
+        #viewport-3d { flex: 1; background: #000; position: relative; }
+        #blueprint-canvas { flex: 1; background: #111; display: none; }
+
+        /* Sidebar Propriétés */
+        .inspector { width: 250px; background: var(--panel); border-left: 1px solid #222; padding: 15px; }
+
+        .btn-mode { padding: 8px 15px; cursor: pointer; border-radius: 4px; border: 1px solid #333; background: #222; color: #888; font-size: 12px; }
+        .btn-mode.active { border-color: var(--orange); color: var(--orange); font-weight: bold; }
+        
+        .publish-btn { background: var(--orange); color: black; border: none; padding: 8px 20px; border-radius: 4px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 800; letter-spacing: 1px;">STUDIO <span style="color:var(--orange)">INFINITY</span></div>
-    <button class="btn-save" onclick="publishMap()">PUBLIER SUR LE HUB</button>
+    <div style="font-weight: 900; letter-spacing: 1px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
+    <div style="display:flex; gap:10px;">
+        <button id="tab-3d" class="btn-mode active" onclick="setMode('3d')">VIEWPORT 3D</button>
+        <button id="tab-blueprints" class="btn-mode" onclick="setMode('blueprints')">BLUEPRINTS</button>
+    </div>
+    <button class="publish-btn">PUBLIER LE JEU</button>
 </header>
 
-<div class="editor">
-    <aside class="tools">
-        <button onclick="spawn('cube')" style="font-size:25px; background:none; border:none; cursor:pointer;">📦</button>
-        <button onclick="spawn('sphere')" style="font-size:25px; background:none; border:none; cursor:pointer;">🔴</button>
-    </aside>
+<div class="main-container">
+    <div id="viewport-3d"></div>
 
-    <main class="viewport" id="world"></main>
+    <canvas id="blueprint-canvas"></canvas>
 
     <aside class="inspector">
-        <h4 style="margin:0 0 20px 0">Propriétés</h4>
-        <div id="no-sel" style="color:#555">Sélectionnez un objet</div>
-        <div id="controls" style="display:none">
-            <label style="font-size:12px; color:#888">Couleur</label>
-            <input type="color" id="obj-color" oninput="updateObj()" style="width:100%; height:40px; margin-bottom:15px; background:none; border:none;">
-            <button onclick="deleteObj()" style="width:100%; background:#422; color:#f55; border:1px solid #f55; padding:8px; border-radius:5px; cursor:pointer">Supprimer</button>
+        <h4 style="margin-top:0; color:var(--orange)">DÉTAILS</h4>
+        <div id="outliner" style="font-size:12px; color:#aaa;">
+            <p>• SceneRoot</p>
+            <p>• DirectionalLight</p>
+            <p style="color:white">• Cube_01 (Selected)</p>
+        </div>
+        <hr style="border:0; border-top:1px solid #333; margin:20px 0;">
+        <label style="font-size:10px; display:block; margin-bottom:5px;">TRANSFORM</label>
+        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:5px;">
+            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
+            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
+            <input type="number" value="0" style="background:#000; border:1px solid #444; color:white; padding:3px;">
         </div>
     </aside>
 </div>
 
 <script>
-    let selected = null;
-    let mapData = [];
+    // --- 1. MOTEUR 3D (Three.js) ---
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    const view3d = document.getElementById('viewport-3d');
+    
+    renderer.setSize(view3d.clientWidth, view3d.clientHeight);
+    view3d.appendChild(renderer.domElement);
 
-    function spawn(type) {
-        const el = document.createElement('div');
-        el.className = 'obj';
-        el.style.width = '80px';
-        el.style.height = '80px';
-        el.style.left = '100px';
-        el.style.top = '100px';
-        el.style.backgroundColor = '#555';
-        if(type === 'sphere') el.style.borderRadius = '50%';
+    // Cube de démo
+    const geometry = new THREE.BoxGeometry(1.5, 1.5, 1.5);
+    const material = new THREE.MeshStandardMaterial({ color: 0xf29979 });
+    const cube = new THREE.Mesh(geometry, material);
+    scene.add(cube);
 
-        el.onmousedown = (e) => {
-            select(el);
-            let startX = e.clientX - el.offsetLeft;
-            let startY = e.clientY - el.offsetTop;
-            
-            function move(e) {
-                el.style.left = (e.clientX - startX) + 'px';
-                el.style.top = (e.clientY - startY) + 'px';
-            }
-            window.onmousemove = move;
-            window.onmouseup = () => window.onmousemove = null;
-        };
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    const pointLight = new THREE.PointLight(0xffffff, 1, 100);
+    pointLight.position.set(5, 5, 5);
+    scene.add(pointLight);
 
-        document.getElementById('world').appendChild(el);
-        select(el);
+    camera.position.z = 5;
+
+    function animate() {
+        requestAnimationFrame(animate);
+        cube.rotation.x += 0.01;
+        cube.rotation.y += 0.01;
+        renderer.render(scene, camera);
+    }
+    animate();
+
+    // --- 2. MOTEUR BLUEPRINTS (LiteGraph) ---
+    const graph = new LGraph();
+    const canvas = new LGraphCanvas("#blueprint-canvas", graph);
+    
+    // Ajuster la taille du canvas
+    function resizeBlueprints() {
+        const parent = document.getElementById('blueprint-canvas').parentElement;
+        canvas.resize(parent.clientWidth - 250, parent.clientHeight);
     }
 
-    function select(el) {
-        if(selected) selected.classList.remove('selected');
-        selected = el;
-        selected.classList.add('selected');
-        document.getElementById('no-sel').style.display = 'none';
-        document.getElementById('controls').style.display = 'block';
+    // Création de nœuds personnalisés type "Unreal"
+    function createDemoNodes() {
+        const node_event = LiteGraph.createNode("events/on_tick");
+        node_event.pos = [100, 100];
+        graph.add(node_event);
+
+        const node_move = LiteGraph.createNode("geometry/transform");
+        node_move.pos = [400, 100];
+        graph.add(node_move);
+
+        node_event.connect(0, node_move, 0);
+    }
+    createDemoNodes();
+
+    // --- 3. GESTION DES MODES ---
+    function setMode(mode) {
+        const v3d = document.getElementById('viewport-3d');
+        const vbp = document.getElementById('blueprint-canvas');
+        const t3d = document.getElementById('tab-3d');
+        const tbp = document.getElementById('tab-blueprints');
+
+        if (mode === '3d') {
+            v3d.style.display = 'block';
+            vbp.style.display = 'none';
+            t3d.classList.add('active');
+            tbp.classList.remove('active');
+        } else {
+            v3d.style.display = 'none';
+            vbp.style.display = 'block';
+            t3d.classList.remove('active');
+            tbp.classList.add('active');
+            resizeBlueprints();
+        }
     }
 
-    function updateObj() {
-        if(selected) selected.style.backgroundColor = document.getElementById('obj-color').value;
-    }
-
-    function deleteObj() {
-        if(selected) { selected.remove(); selected = null; document.getElementById('no-sel').style.display = 'block'; document.getElementById('controls').style.display = 'none'; }
-    }
-
-    async function publishMap() {
-        const objects = Array.from(document.querySelectorAll('.obj')).map(el => ({
-            x: el.style.left,
-            y: el.style.top,
-            color: el.style.backgroundColor,
-            radius: el.style.borderRadius
-        }));
-        
-        console.log("Données de la carte :", objects);
-        alert("Carte envoyée à l'API !");
-        // Ici on fera le fetch vers ton Worker
-    }
+    window.addEventListener('resize', () => {
+        renderer.setSize(view3d.clientWidth, view3d.clientHeight);
+        camera.aspect = view3d.clientWidth / view3d.clientHeight;
+        camera.updateProjectionMatrix();
+        resizeBlueprints();
+    });
 </script>
 </body>
 </html>
