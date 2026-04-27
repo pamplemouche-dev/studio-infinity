@@ -3,214 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Studio | Éditeur</title>
-    
+    <title>Infinity Studio | Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
-
     <style>
         :root { --bg: #050505; --panel: #121214; --orange: #f29979; --border: #252528; }
-        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-        
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: var(--bg); color: white; font-family: 'Inter', sans-serif;
-            overflow: hidden;
-        }
-
-        /* Barre de navigation supérieure */
-        nav { 
-            position: fixed; top: 0; left: 0; right: 0; height: 55px; 
-            background: var(--panel); display: flex; align-items: center; 
-            justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border);
-            z-index: 10000;
-        }
-
-        .project-info { display: flex; align-items: center; gap: 15px; }
-        #project-title { font-weight: 800; color: var(--orange); text-transform: uppercase; font-size: 14px; }
-
-        .btn-group { display: flex; gap: 8px; background: #000; padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
-        .mode-btn { 
-            padding: 7px 15px; border-radius: 7px; border: none; cursor: pointer;
-            background: transparent; color: #666; font-size: 12px; font-weight: bold;
-        }
-        .mode-btn.active { background: #1e1e21; color: var(--orange); }
-
-        /* Layout */
-        .editor-main { display: flex; height: 100vh; padding-top: 55px; }
-        
-        #viewport-3d { flex: 1; background: #000; position: relative; }
-        #node-editor { 
-            position: absolute; inset: 55px 0 0 0; background: #080808; 
-            display: none; z-index: 5000; touch-action: none;
-        }
-
-        /* Noeuds Style Unreal */
-        .node {
-            position: absolute; background: #1b1b1e; border: 1px solid #444;
-            border-radius: 8px; width: 190px; box-shadow: 0 10px 30px rgba(0,0,0,0.6);
-            user-select: none;
-        }
-        .node-header { 
-            padding: 10px; background: #252529; cursor: grab; font-size: 11px; 
-            font-weight: bold; border-radius: 8px 8px 0 0; border-bottom: 1px solid #444;
-            display: flex; justify-content: space-between;
-        }
-        .node-content { padding: 12px; font-size: 11px; color: #aaa; }
-        .port { width: 10px; height: 10px; background: #555; border-radius: 50%; display: inline-block; vertical-align: middle; }
-
-        .publish-btn { background: var(--orange); color: black; border: none; padding: 8px 20px; border-radius: 6px; font-weight: 900; cursor: pointer; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
+        nav { position: fixed; top: 0; width: 100%; height: 55px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid var(--border); z-index: 1000; }
+        #viewport { position: absolute; inset: 55px 0 0 0; touch-action: none; }
+        .tool-btn { background: #222; border: 1px solid #444; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .tool-btn.active { background: var(--orange); color: black; border-color: var(--orange); }
     </style>
 </head>
 <body>
 
 <nav>
-    <div class="project-info">
-        <button onclick="location.href='index.html'" style="background:none; border:none; color:white; cursor:pointer; font-size:18px;">←</button>
-        <div id="project-title">NOM DU PROJET</div>
+    <div id="project-name" style="font-weight:bold; color:var(--orange); font-size:12px;">PROJET</div>
+    
+    <div style="display:flex; gap:5px;">
+        <button id="m-move" class="tool-btn active" onclick="setMode('translate')">Bouger</button>
+        <button id="m-rot" class="tool-btn" onclick="setMode('rotate')">Tourner</button>
+        <button id="m-scale" class="tool-btn" onclick="setMode('scale')">Taille</button>
     </div>
 
-    <div class="btn-group">
-        <button id="btn-3d" class="mode-btn active" onclick="setMode('3d')">VIEWPORT</button>
-        <button id="btn-bp" class="mode-btn" onclick="setMode('bp')">BLUEPRINTS</button>
-    </div>
-
-    <div style="display: flex; gap: 10px;">
-        <button onclick="addCube()" class="mode-btn" style="color:white; border:1px solid #444">+ Objet</button>
-        <button class="publish-btn" onclick="publish()">PUBLIER</button>
+    <div style="display:flex; gap:5px;">
+        <button class="tool-btn" onclick="addCube()" style="background:#333">+ Objet</button>
+        <button class="tool-btn" onclick="publish()" style="background:var(--orange); color:black; font-weight:bold;">PUBLIER</button>
     </div>
 </nav>
 
-<div class="editor-main">
-    <div id="viewport-3d"></div>
-    <div id="node-editor"></div>
-</div>
+<div id="viewport"></div>
 
 <script>
-    // --- 1. CONFIGURATION DU PROJET ---
     const urlParams = new URLSearchParams(window.location.search);
     const gameName = urlParams.get('name') || "Sans Titre";
-    document.getElementById('project-title').innerText = gameName;
-    document.title = "Editeur | " + gameName;
+    document.getElementById('project-name').innerText = gameName.toUpperCase();
 
-    // --- 2. MOTEUR 3D (Three.js) ---
-    const vp = document.getElementById('viewport-3d');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, vp.clientWidth / vp.clientHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 55), 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(vp.clientWidth, vp.clientHeight);
-    vp.appendChild(renderer.domElement);
+    renderer.setSize(window.innerWidth, window.innerHeight - 55);
+    document.getElementById('viewport').appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     const transform = new THREE.TransformControls(camera, renderer.domElement);
     scene.add(transform);
-    transform.addEventListener('dragging-changed', e => controls.enabled = !e.value);
+    transform.addEventListener('dragging-changed', (e) => controls.enabled = !e.value);
 
     scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
     camera.position.set(5, 5, 5);
 
     let objects = [];
 
     function addCube() {
-        const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(), 
-            new THREE.MeshStandardMaterial({ color: 0xf29979 })
-        );
-        mesh.name = "Cube_" + objects.length;
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
         mesh.position.y = 0.5;
         scene.add(mesh);
         objects.push(mesh);
         transform.attach(mesh);
     }
 
-    // --- 3. MOTEUR NO-CODE (Noeuds) ---
-    const nodeArea = document.getElementById('node-editor');
-
-    function createNode(title, x, y, color) {
-        const node = document.createElement('div');
-        node.className = 'node';
-        node.style.left = x + 'px';
-        node.style.top = y + 'px';
-        node.innerHTML = `
-            <div class="node-header" style="border-top: 3px solid ${color}">${title}</div>
-            <div class="node-content">
-                <div style="display:flex; justify-content:space-between">
-                    <span><div class="port"></div> In</span>
-                    <span>Out <div class="port"></div></span>
-                </div>
-            </div>
-        `;
-
-        const header = node.querySelector('.node-header');
-        header.addEventListener('pointerdown', (e) => {
-            let offsetX = e.clientX - node.offsetLeft;
-            let offsetY = e.clientY - node.offsetTop;
-            node.setPointerCapture(e.pointerId);
-            
-            const onMove = (ev) => {
-                node.style.left = (ev.clientX - offsetX) + 'px';
-                node.style.top = (ev.clientY - offsetY) + 'px';
-            };
-            
-            header.addEventListener('pointermove', onMove);
-            header.addEventListener('pointerup', () => header.removeEventListener('pointermove', onMove), {once:true});
-        });
-
-        nodeArea.appendChild(node);
-    }
-
-    createNode("EVENT: BEGIN PLAY", 100, 100, "#3498db");
-    createNode("ACTION: MOVE TO", 350, 150, "#2ecc71");
-
-    // --- 4. LOGIQUE D'INTERFACE ---
+    // --- CHANGER DE MODE (Position / Rotation / Taille) ---
     function setMode(mode) {
-        const is3D = mode === '3d';
-        document.getElementById('viewport-3d').style.display = is3D ? 'block' : 'none';
-        document.getElementById('node-editor').style.display = is3D ? 'none' : 'block';
-        document.getElementById('btn-3d').classList.toggle('active', is3D);
-        document.getElementById('btn-bp').classList.toggle('active', !is3D);
+        transform.setMode(mode);
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        if(mode === 'translate') document.getElementById('m-move').classList.add('active');
+        if(mode === 'rotate') document.getElementById('m-rot').classList.add('active');
+        if(mode === 'scale') document.getElementById('m-scale').classList.add('active');
     }
 
     async function publish() {
         const mapData = objects.map(o => ({
-            name: o.name,
-            pos: { x: o.position.x, y: o.position.y, z: o.position.z },
+            pos: o.position,
+            rot: { x: o.rotation.x, y: o.rotation.y, z: o.rotation.z },
+            scale: o.scale,
             color: o.material.color.getHex()
         }));
 
         try {
-            const response = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
+            const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    title: gameName,
-                    map: mapData,
-                    logic: "{}" 
-                })
+                body: JSON.stringify({ title: gameName, map: mapData, logic: {} })
             });
-
-            if(response.ok) alert("🚀 Univers publié avec succès !");
-            else alert("Erreur lors de la publication.");
-        } catch (e) {
-            alert("Impossible de joindre le serveur.");
-        }
+            const result = await res.json();
+            if(result.success) alert(result.mode === "updated" ? "Mise à jour réussie !" : "Projet publié !");
+        } catch(e) { alert("Erreur de connexion."); }
     }
 
-    function animate() {
-        requestAnimationFrame(animate);
-        renderer.render(scene, camera);
-    }
-
-    window.addEventListener('resize', () => {
-        camera.aspect = vp.clientWidth / vp.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(vp.clientWidth, vp.clientHeight);
-    });
-
+    function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
 </script>
 </body>
