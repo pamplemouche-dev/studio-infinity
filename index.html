@@ -3,181 +3,149 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Studio | Ultra HD Engine</title>
-    
+    <title>Infinity Studio v2 | Fix</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-    
+
     <style>
         :root { --bg: #050505; --panel: #121214; --orange: #f29979; --border: #252528; }
-        * { box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
         
-        body, html { 
-            margin: 0; padding: 0; width: 100%; height: 100%; 
-            background: var(--bg); color: white; font-family: 'Inter', sans-serif;
-            overflow: hidden;
+        /* Navigation Toujours Visible */
+        .top-nav { 
+            position: fixed; top: 0; left: 0; right: 0; height: 50px; 
+            background: var(--panel); display: flex; align-items: center; 
+            justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border);
+            z-index: 9999; /* Toujours au-dessus de tout */
         }
 
-        /* Layout Adaptatif */
-        .app-container { display: flex; flex-direction: column; height: 100%; }
-        
-        header { 
-            height: 50px; background: var(--panel); display: flex; 
-            align-items: center; justify-content: space-between; 
-            padding: 0 15px; border-bottom: 1px solid var(--border);
-            flex-shrink: 0;
-        }
+        .main-content { display: flex; height: 100vh; padding-top: 50px; box-sizing: border-box; }
 
-        .main-editor { flex: 1; display: flex; overflow: hidden; position: relative; }
-
-        /* Sidebar responsive (cachée sur petit mobile si besoin) */
-        .sidebar { 
-            width: 220px; background: var(--panel); border-right: 1px solid var(--border);
-            display: flex; flex-direction: column;
-        }
-
-        @media (max-width: 768px) { .sidebar { width: 150px; } }
-
-        /* Viewport avec support Retina */
-        .viewport-container { flex: 1; position: relative; background: #000; }
-        canvas { width: 100% !important; height: 100% !important; display: block; }
-
-        /* No-Code Overlay (Le graphe de noeuds) */
+        /* Editeur de Noeuds */
         #node-editor {
-            position: absolute; inset: 0; background: rgba(10,10,10,0.9);
-            display: none; z-index: 50;
+            position: absolute; inset: 50px 0 0 0; background: #0a0a0a;
+            display: none; z-index: 5000; touch-action: none;
         }
 
-        /* Interface de contrôle */
-        .mode-selector {
-            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(20,20,22,0.9); padding: 5px; border-radius: 12px;
-            display: flex; gap: 5px; border: 1px solid var(--border); backdrop-filter: blur(10px);
-        }
-
-        .btn {
-            padding: 10px 20px; border-radius: 8px; border: none;
-            background: transparent; color: #666; font-weight: bold; cursor: pointer;
-        }
-        .btn.active { background: var(--orange); color: black; }
-
-        /* Style des Noeuds SVG (Ultra Net) */
+        /* Design des Noeuds Net & Stable */
         .node {
-            position: absolute; background: #1e1e21; border: 2px solid #333;
-            border-radius: 8px; min-width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            cursor: grab; touch-action: none;
+            position: absolute; background: #1e1e21; border: 1px solid #444;
+            border-radius: 8px; width: 180px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            user-select: none;
         }
         .node-header { 
-            padding: 8px; background: rgba(242, 153, 121, 0.2); 
-            border-bottom: 1px solid #333; font-size: 11px; font-weight: bold;
-            color: var(--orange); border-radius: 6px 6px 0 0;
+            padding: 10px; background: #2a2a2e; border-bottom: 1px solid #444; 
+            cursor: grab; font-size: 11px; font-weight: bold; border-radius: 8px 8px 0 0;
+            color: var(--orange);
         }
+        .node-content { padding: 15px; font-size: 12px; }
+        .port { width: 12px; height: 12px; background: #555; border-radius: 50%; display: inline-block; cursor: crosshair; border: 2px solid #1e1e21; }
+        .port:hover { background: var(--orange); }
+
+        #viewport-3d { flex: 1; background: #000; }
+
+        .active-view { background: var(--orange) !important; color: black !important; }
+        .btn { background: #222; border: none; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
 
-<div class="app-container">
-    <header>
-        <div style="font-weight: 900; color: var(--orange)">INFINITY STUDIO</div>
-        <button onclick="publish()" style="background:var(--orange); border:none; padding:5px 15px; border-radius:5px; font-weight:bold;">PUBLIER</button>
-    </header>
-
-    <div class="main-editor">
-        <aside class="sidebar">
-            <div style="padding:10px; font-size:10px; opacity:0.5;">HIÉRARCHIE</div>
-            <div id="outliner" style="padding:10px; font-size:13px;">
-                <div>🔹 SceneRoot</div>
-                <div style="color:var(--orange)">📦 Cube_01</div>
-            </div>
-        </aside>
-
-        <main class="viewport-container">
-            <div id="viewport-3d"></div>
-            
-            <div id="node-editor">
-                <svg id="connections" style="position:absolute; width:100%; height:100%; pointer-events:none;"></svg>
-            </div>
-
-            <div class="mode-selector">
-                <button id="btn-3d" class="btn active" onclick="setMode('3d')">3D</button>
-                <button id="btn-bp" class="btn" onclick="setMode('bp')">SCRIPT</button>
-            </div>
-        </main>
+<nav class="top-nav">
+    <div style="font-weight: 900; color: var(--orange)">INFINITY STUDIO</div>
+    <div style="display:flex; gap:10px;">
+        <button id="btn-3d" class="btn active-view" onclick="setMode('3d')">3D VIEW</button>
+        <button id="btn-bp" class="btn" onclick="setMode('bp')">BLUEPRINTS</button>
     </div>
+    <button class="btn" style="background:#444">PUBLIER</button>
+</nav>
+
+<div class="main-content">
+    <div id="viewport-3d"></div>
+    <div id="node-editor">
+        </div>
 </div>
 
 <script>
-    // --- SETUP 3D HD ---
+    // --- 1. SETUP 3D (Net & Responsive) ---
     const vp = document.getElementById('viewport-3d');
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, vp.clientWidth / vp.clientHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
     
-    // Correction du flou : on s'adapte à la densité de pixels de l'écran
-    const pixelRatio = window.devicePixelRatio;
-    renderer.setPixelRatio(pixelRatio);
-    renderer.setSize(vp.clientWidth, vp.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight - 50);
     vp.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x111111));
+    scene.add(new THREE.AmbientLight(0xffffff, 1));
     
     const cube = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
     scene.add(cube);
-    scene.add(new THREE.AmbientLight(0xffffff, 1));
     camera.position.set(3,3,3);
 
-    // --- SYSTEME DE NOEUDS HD (SVG + DOM) ---
+    // --- 2. SETUP NOEUDS (Stable Move) ---
     const nodeArea = document.getElementById('node-editor');
-    
-    function createNode(title, x, y, color) {
+
+    function createNode(title, x, y) {
         const node = document.createElement('div');
         node.className = 'node';
         node.style.left = x + 'px';
         node.style.top = y + 'px';
+        
         node.innerHTML = `
-            <div class="node-header" style="color:${color}">${title}</div>
-            <div style="padding:15px; font-size:10px;">
-                <div style="display:flex; justify-content:space-between;">
-                    <span>▶ Input</span>
-                    <span>Output ●</span>
+            <div class="node-header">${title}</div>
+            <div class="node-content">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span><div class="port"></div> In</span>
+                    <span>Out <div class="port"></div></span>
                 </div>
             </div>
         `;
 
-        // Gestion du déplacement (Mouse + Touch)
+        const header = node.querySelector('.node-header');
         let isDragging = false;
-        node.addEventListener('pointerdown', (e) => {
+        let startX, startY;
+
+        header.addEventListener('pointerdown', (e) => {
             isDragging = true;
-            node.style.zIndex = 1000;
+            startX = e.clientX - node.offsetLeft;
+            startY = e.clientY - node.offsetTop;
+            header.style.cursor = 'grabbing';
             node.setPointerCapture(e.pointerId);
+            e.stopPropagation(); // Empêche de cliquer à travers
         });
 
-        node.addEventListener('pointermove', (e) => {
+        window.addEventListener('pointermove', (e) => {
             if (!isDragging) return;
-            const parent = nodeArea.getBoundingClientRect();
-            node.style.left = (e.clientX - parent.left - 75) + 'px';
-            node.style.top = (e.clientY - parent.top - 20) + 'px';
+            node.style.left = (e.clientX - startX) + 'px';
+            node.style.top = (e.clientY - startY) + 'px';
         });
 
-        node.addEventListener('pointerup', (e) => {
+        window.addEventListener('pointerup', (e) => {
             isDragging = false;
-            node.releasePointerCapture(e.pointerId);
+            header.style.cursor = 'grab';
         });
 
         nodeArea.appendChild(node);
     }
 
-    // Création des noeuds initiaux
-    createNode("EVENT: START", 100, 100, "#3498db");
-    createNode("ACTION: MOVE", 350, 150, "#2ecc71");
+    createNode("EVENT: ON_START", 100, 100);
+    createNode("ACTION: ROTATE", 350, 150);
 
-    // --- LOGIQUE INTERFACE ---
+    // --- 3. GESTION DU SWITCH ---
     function setMode(mode) {
         const is3D = mode === '3d';
         document.getElementById('node-editor').style.display = is3D ? 'none' : 'block';
-        document.getElementById('btn-3d').className = 'btn' + (is3D ? ' active' : '');
-        document.getElementById('btn-bp').className = 'btn' + (!is3D ? ' active' : '');
+        document.getElementById('btn-3d').classList.toggle('active-view', is3D);
+        document.getElementById('btn-bp').classList.toggle('active-view', !is3D);
+        
+        // Relancer le rendu ThreeJS si on revient en 3D
+        if(is3D) {
+            renderer.setSize(window.innerWidth, window.innerHeight - 50);
+            camera.aspect = window.innerWidth / (window.innerHeight - 50);
+            camera.updateProjectionMatrix();
+        }
     }
 
     function animate() {
@@ -186,16 +154,13 @@
     }
     animate();
 
-    // Redimensionnement automatique
+    // Resize intelligent
     window.addEventListener('resize', () => {
-        const w = vp.clientWidth;
-        const h = vp.clientHeight;
-        camera.aspect = w / h;
+        const h = window.innerHeight - 50;
+        renderer.setSize(window.innerWidth, h);
+        camera.aspect = window.innerWidth / h;
         camera.updateProjectionMatrix();
-        renderer.setSize(w, h);
     });
-
-    function publish() { alert("Projet Infinity publié avec succès !"); }
 </script>
 </body>
 </html>
