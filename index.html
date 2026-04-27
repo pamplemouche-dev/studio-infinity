@@ -2,8 +2,8 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Studio | Professional Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinity Studio | High-Res Blueprints</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
@@ -13,187 +13,167 @@
     <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
 
     <style>
-        :root { --bg: #0f0f11; --panel: #161618; --orange: #f29979; --border: #2c2c2e; --accent: #3498db; }
-        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        :root { --bg: #0b0b0d; --panel: #141417; --orange: #f29979; --border: #252528; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Inter', 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
-        /* Barre de contrôle supérieure */
-        header { 
-            height: 50px; background: var(--panel); display: flex; align-items: center; 
-            justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border);
-        }
+        header { height: 50px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); }
 
-        .mode-selector { display: flex; background: #000; border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
-        .mode-btn { 
-            padding: 6px 15px; border-radius: 6px; cursor: pointer; border: none; 
-            background: transparent; color: #888; font-size: 12px; font-weight: bold; 
-        }
-        .mode-btn.active { background: #222; color: var(--orange); }
+        /* Navigation Modes */
+        .mode-tabs { display: flex; gap: 5px; background: #000; padding: 4px; border-radius: 10px; border: 1px solid var(--border); }
+        .tab-btn { padding: 6px 20px; border-radius: 7px; cursor: pointer; border: none; background: transparent; color: #666; font-size: 12px; font-weight: 600; transition: 0.2s; }
+        .tab-btn.active { background: #1e1e21; color: var(--orange); box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 
-        .editor-layout { flex: 1; display: flex; overflow: hidden; }
+        .editor-container { flex: 1; display: flex; overflow: hidden; }
 
-        /* Hiérarchie (Gauche) */
-        .hierarchy { width: 220px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-        .h-item { padding: 10px 15px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #1f1f21; }
-        .h-item:hover { background: #252525; }
-        .h-item.selected { background: #2c2c2e; border-left: 3px solid var(--orange); color: var(--orange); }
+        /* Hiérarchie Pro */
+        .sidebar { width: 240px; background: var(--panel); border-right: 1px solid var(--border); }
+        .sidebar-title { padding: 12px; font-size: 10px; color: #555; text-transform: uppercase; font-weight: 800; border-bottom: 1px solid var(--border); }
+        .obj-item { padding: 10px 15px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #1a1a1d; display: flex; align-items: center; gap: 10px; }
+        .obj-item:hover { background: #1c1c1f; }
+        .obj-item.selected { background: #222226; color: var(--orange); }
 
-        /* Zone de travail */
-        .work-area { flex: 1; position: relative; background: #000; }
-        #viewport-3d { width: 100%; height: 100%; }
-        #blueprint-area { width: 100%; height: 100%; display: none; background: #111; }
-
-        /* Floating Tools 3D */
-        .gizmo-tools { position: absolute; top: 15px; left: 15px; display: flex; gap: 5px; background: var(--panel); padding: 5px; border-radius: 8px; border: 1px solid var(--border); }
-        .gizmo-btn { background: #222; border: 1px solid #333; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+        /* Zone de travail HD */
+        .workspace { flex: 1; position: relative; }
+        #viewport-3d, #blueprint-canvas { width: 100%; height: 100%; position: absolute; top: 0; left: 0; }
         
-        .publish-btn { background: var(--orange); border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        /* Customisation LiteGraph pour qualité "Unreal" */
+        .litegraph .lgraphcanvas { background-color: #0e0e10 !important; }
+        /* On force le lissage des polices */
+        canvas { image-rendering: -webkit-optimize-contrast; font-smoothing: antialiased; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 900; font-size: 16px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
+    <div style="font-weight: 900; letter-spacing: 1px; font-size: 18px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
     
-    <div class="mode-selector">
-        <button id="btn-3d" class="mode-btn active" onclick="setMode('3d')">VIEWPORT 3D</button>
-        <button id="btn-bp" class="mode-btn" onclick="setMode('bp')">BLUEPRINTS</button>
+    <div class="mode-tabs">
+        <button id="btn-3d" class="tab-btn active" onclick="switchView('3d')">VIEWPORT</button>
+        <button id="btn-bp" class="tab-btn" onclick="switchView('bp')">BLUEPRINTS</button>
     </div>
 
-    <div style="display:flex; gap:10px;">
-        <button class="mode-btn" onclick="addCube()">+ Cube</button>
-        <button class="publish-btn">PUBLIER</button>
-    </div>
+    <button onclick="addCube()" style="background:var(--orange); border:none; padding:8px 18px; border-radius:6px; font-weight:bold; cursor:pointer;">PUBLIER</button>
 </header>
 
-<div class="editor-layout">
-    <aside class="hierarchy">
-        <div style="padding: 10px; font-size: 11px; color: #555; border-bottom: 1px solid var(--border);">HIÉRARCHIE SCÈNE</div>
-        <div id="hierarchy-list"></div>
+<div class="editor-container">
+    <aside class="sidebar">
+        <div class="sidebar-title">Outliner</div>
+        <div id="obj-list"></div>
     </aside>
 
-    <main class="work-area">
-        <div id="viewport-3d">
-            <div class="gizmo-tools">
-                <button class="gizmo-btn" onclick="setGizmo('translate')">✛</button>
-                <button class="gizmo-btn" onclick="setGizmo('rotate')">🔄</button>
-                <button class="gizmo-btn" onclick="setGizmo('scale')">↗</button>
-            </div>
-        </div>
-
-        <canvas id="blueprint-area"></canvas>
+    <main class="workspace">
+        <div id="viewport-3d"></div>
+        <canvas id="blueprint-canvas"></canvas>
     </main>
 </div>
 
 <script>
-    // --- 1. SETUP 3D ---
-    const viewport = document.getElementById('viewport-3d');
+    // --- INITIALISATION 3D ---
+    const vp = document.getElementById('viewport-3d');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0a0a);
-    const camera = new THREE.PerspectiveCamera(75, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
-    camera.position.set(5, 5, 5);
+    scene.background = new THREE.Color(0x0e0e10);
+    const camera = new THREE.PerspectiveCamera(75, vp.clientWidth / vp.clientHeight, 0.1, 1000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+    renderer.setPixelRatio(window.devicePixelRatio); // FIX QUALITÉ ÉCRAN
+    renderer.setSize(vp.clientWidth, vp.clientHeight);
+    vp.appendChild(renderer.domElement);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
-    viewport.appendChild(renderer.domElement);
-
-    scene.add(new THREE.GridHelper(20, 20, 0x333333, 0x222222));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-
+    camera.position.set(3, 3, 3);
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    const transform = new THREE.TransformControls(camera, renderer.domElement);
-    scene.add(transform);
-    transform.addEventListener('dragging-changed', e => controls.enabled = !e.value);
+    scene.add(new THREE.GridHelper(20, 20, 0x222222, 0x1a1a1a));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
 
-    let objects = [];
-    let selected = null;
+    // --- SYSTÈME DE NOEUDS APPROFONDI (Blueprints) ---
+    const graph = new LGraph();
+    const canvas = new LGraphCanvas("#blueprint-canvas", graph);
+    
+    // Style des Noeuds "Unreal"
+    LiteGraph.NODE_TITLE_HEIGHT = 30;
+    LiteGraph.NODE_SLOT_HEIGHT = 20;
+    LiteGraph.NODE_WIDTH = 160;
+    canvas.title_text_font = "bold 12px Inter";
+    canvas.inner_text_font = "normal 10px Inter";
+    canvas.render_shadows = true;
+    canvas.highprecision_render = true; // FORCE LA QUALITÉ HD
+
+    // Création de Noeuds Basiques Utiles
+    function setupBlueprints() {
+        // Noeud : Quand le jeu commence
+        function EventStart() { this.addOutput("Exec", LiteGraph.EVENT); }
+        EventStart.title = "Begin Play";
+        EventStart.title_color = "#3d85c6"; // Bleu Unreal
+        LiteGraph.registerNodeType("events/begin_play", EventStart);
+
+        // Noeud : Déplacer Objet
+        function MoveTo() {
+            this.addInput("Exec", LiteGraph.ACTION);
+            this.addInput("Target", "string");
+            this.addInput("X", "number");
+            this.addProperty("speed", 1.0);
+        }
+        MoveTo.title = "Set Actor Location";
+        MoveTo.title_color = "#38761d"; // Vert Action
+        LiteGraph.registerNodeType("actions/move_to", MoveTo);
+
+        // Noeud : Variable Vitesse
+        function FloatValue() {
+            this.addOutput("Value", "number");
+            this.addProperty("val", 5.0);
+            this.widget = this.addWidget("number","Vitesse", 5, (v) => { this.properties.val = v; });
+        }
+        FloatValue.title = "Float Variable";
+        LiteGraph.registerNodeType("math/float", FloatValue);
+
+        // Exemple de graph par défaut
+        const n1 = LiteGraph.createNode("events/begin_play"); n1.pos = [50, 100]; graph.add(n1);
+        const n2 = LiteGraph.createNode("actions/move_to"); n2.pos = [300, 100]; graph.add(n2);
+        const n3 = LiteGraph.createNode("math/float"); n3.pos = [50, 200]; graph.add(n3);
+        
+        n1.connect(0, n2, 0);
+        n3.connect(0, n2, 2);
+    }
+    setupBlueprints();
+
+    // --- GESTION DES VUES ---
+    function switchView(mode) {
+        const is3D = mode === '3d';
+        document.getElementById('viewport-3d').style.display = is3D ? 'block' : 'none';
+        document.getElementById('blueprint-canvas').style.display = is3D ? 'none' : 'block';
+        document.getElementById('btn-3d').className = 'tab-btn' + (is3D ? ' active' : '');
+        document.getElementById('btn-bp').className = 'tab-btn' + (!is3D ? ' active' : '');
+        
+        if(!is3D) {
+            canvas.resize(); // Recalcule la taille pour éviter le flou
+        }
+    }
 
     function addCube() {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
-        mesh.name = "Cube_" + (objects.length + 1);
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color:0xf29979}));
+        mesh.name = "Cube_" + Math.floor(Math.random()*100);
         scene.add(mesh);
-        objects.push(mesh);
-        updateHierarchy();
-        select(mesh);
+        updateList();
     }
 
-    function select(obj) {
-        selected = obj;
-        transform.attach(obj);
-        updateHierarchy();
-    }
-
-    function setGizmo(mode) { transform.setMode(mode); }
-
-    function updateHierarchy() {
-        const list = document.getElementById('hierarchy-list');
-        list.innerHTML = objects.map(obj => `
-            <div class="h-item ${selected === obj ? 'selected' : ''}" onclick="selectByName('${obj.name}')">
-                📦 ${obj.name}
-            </div>
+    function updateList() {
+        const list = document.getElementById('obj-list');
+        list.innerHTML = scene.children.filter(c => c.type === "Mesh").map(m => `
+            <div class="obj-item">📦 ${m.name}</div>
         `).join('');
-    }
-    window.selectByName = (name) => select(objects.find(o => o.name === name));
-
-    // --- 2. SETUP NO-CODE (BLUEPRINTS) ---
-    const graph = new LGraph();
-    const bpCanvas = new LGraphCanvas("#blueprint-area", graph);
-    bpCanvas.background_image = ""; // Supprimer le logo LiteGraph
-
-    // Enregistrement de nœuds basiques personnalisés
-    function registerBasicNodes() {
-        // Nœud : Start
-        function NodeStart() { this.addOutput("On Start", LiteGraph.EVENT); }
-        NodeStart.title = "Event: Start";
-        LiteGraph.registerNodeType("logic/start", NodeStart);
-
-        // Nœud : Move
-        function NodeMove() {
-            this.addInput("Exec", LiteGraph.ACTION);
-            this.addInput("Speed", "number");
-            this.addProperty("speed", 0.1);
-        }
-        NodeMove.title = "Action: Move Forward";
-        LiteGraph.registerNodeType("logic/move", NodeMove);
-    }
-    registerBasicNodes();
-
-    // Ajouter des nœuds par défaut
-    const nStart = LiteGraph.createNode("logic/start");
-    nStart.pos = [50, 50];
-    graph.add(nStart);
-
-    const nMove = LiteGraph.createNode("logic/move");
-    nMove.pos = [250, 50];
-    graph.add(nMove);
-    nStart.connect(0, nMove, 0);
-
-    // --- 3. GESTION DES MODES & RESPONSIVE ---
-    function setMode(mode) {
-        const v3d = document.getElementById('viewport-3d');
-        const vbp = document.getElementById('blueprint-area');
-        document.getElementById('btn-3d').classList.toggle('active', mode === '3d');
-        document.getElementById('btn-bp').classList.toggle('active', mode === 'bp');
-
-        if(mode === '3d') {
-            v3d.style.display = 'block'; vbp.style.display = 'none';
-        } else {
-            v3d.style.display = 'none'; vbp.style.display = 'block';
-            bpCanvas.resize(vbp.parentElement.clientWidth, vbp.parentElement.clientHeight);
-        }
     }
 
     function animate() {
         requestAnimationFrame(animate);
-        controls.update();
         renderer.render(scene, camera);
     }
     animate();
 
-    window.addEventListener('resize', () => {
-        camera.aspect = viewport.clientWidth / viewport.clientHeight;
+    // Gestion du Resize pour garder la netteté
+    window.onresize = () => {
+        renderer.setSize(vp.clientWidth, vp.clientHeight);
+        camera.aspect = vp.clientWidth / vp.clientHeight;
         camera.updateProjectionMatrix();
-        renderer.setSize(viewport.clientWidth, viewport.clientHeight);
-    });
+        canvas.resize();
+    };
 </script>
 </body>
 </html>
