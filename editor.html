@@ -10,40 +10,49 @@
     <style>
         :root { --bg: #050505; --panel: #121214; --orange: #f29979; --border: #252528; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; }
-        nav { position: fixed; top: 0; width: 100%; height: 55px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 10px; border-bottom: 1px solid var(--border); z-index: 1000; }
+        nav { position: fixed; top: 0; width: 100%; height: 55px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); z-index: 1000; }
         #viewport { position: absolute; inset: 55px 0 0 0; touch-action: none; }
-        .tool-btn { background: #222; border: 1px solid #444; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; }
+        .tool-btn { background: #222; border: 1px solid #444; color: white; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; }
         .tool-btn.active { background: var(--orange); color: black; border-color: var(--orange); }
     </style>
 </head>
 <body>
 
 <nav>
-    <div id="project-name" style="font-weight:bold; color:var(--orange); font-size:12px;">PROJET</div>
+    <div style="display:flex; flex-direction:column;">
+        <span id="project-name" style="font-weight:900; color:var(--orange); font-size:14px;">PROJET</span>
+        <span id="user-display" style="font-size:10px; color:#666;">@pseudo</span>
+    </div>
     
-    <div style="display:flex; gap:5px;">
+    <div style="display:flex; gap:8px;">
         <button id="m-move" class="tool-btn active" onclick="setMode('translate')">Bouger</button>
         <button id="m-rot" class="tool-btn" onclick="setMode('rotate')">Tourner</button>
         <button id="m-scale" class="tool-btn" onclick="setMode('scale')">Taille</button>
     </div>
 
-    <div style="display:flex; gap:5px;">
-        <button class="tool-btn" onclick="addCube()" style="background:#333">+ Objet</button>
-        <button class="tool-btn" onclick="publish()" style="background:var(--orange); color:black; font-weight:bold;">PUBLIER</button>
-    </div>
+    <button onclick="publish()" style="background:var(--orange); color:black;" class="tool-btn">PUBLIER</button>
 </nav>
 
 <div id="viewport"></div>
 
 <script>
+    // Récupération du pseudo et du nom du jeu
     const urlParams = new URLSearchParams(window.location.search);
-    const gameName = urlParams.get('name') || "Sans Titre";
-    document.getElementById('project-name').innerText = gameName.toUpperCase();
+    const gameName = urlParams.get('name') || "Nouveau Jeu";
+    const cookies = document.cookie.split('; ').reduce((prev, curr) => {
+        const [name, value] = curr.split('=');
+        prev[name] = value;
+        return prev;
+    }, {});
+    const pseudo = cookies['pamplemouche_session'] || "Invité";
 
+    document.getElementById('project-name').innerText = gameName.toUpperCase();
+    document.getElementById('user-display').innerText = "@" + pseudo;
+
+    // Configuration Three.js
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / (window.innerHeight - 55), 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(window.innerWidth, window.innerHeight - 55);
     document.getElementById('viewport').appendChild(renderer.domElement);
 
@@ -58,21 +67,12 @@
 
     let objects = [];
 
-    function addCube() {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
-        mesh.position.y = 0.5;
-        scene.add(mesh);
-        objects.push(mesh);
-        transform.attach(mesh);
-    }
-
-    // --- CHANGER DE MODE (Position / Rotation / Taille) ---
     function setMode(mode) {
         transform.setMode(mode);
-        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
         if(mode === 'translate') document.getElementById('m-move').classList.add('active');
-        if(mode === 'rotate') document.getElementById('m-rot').classList.add('active');
-        if(mode === 'scale') document.getElementById('m-scale').classList.add('active');
+        if(mode === 'rotate') document.getElementById('btn-rot').classList.add('active');
+        if(mode === 'scale') document.getElementById('btn-scale').classList.add('active');
     }
 
     async function publish() {
@@ -91,7 +91,7 @@
             });
             const result = await res.json();
             if(result.success) alert(result.mode === "updated" ? "Mise à jour réussie !" : "Projet publié !");
-        } catch(e) { alert("Erreur de connexion."); }
+        } catch(e) { alert("Erreur serveur (Vérifie la connexion)."); }
     }
 
     function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
