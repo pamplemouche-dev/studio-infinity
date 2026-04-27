@@ -3,148 +3,185 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Studio | Editor v1</title>
+    <title>Infinity Studio | Professional Engine</title>
+    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    
+    <link rel="stylesheet" type="text/css" href="https://tamats.com/projects/litegraph/css/litegraph.css">
+    <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
 
     <style>
-        :root { --bg: #0a0a0a; --panel: #161618; --orange: #f29979; --border: #2c2c2e; }
-        body { margin: 0; background: var(--bg); color: white; font-family: -apple-system, sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        :root { --bg: #0f0f11; --panel: #161618; --orange: #f29979; --border: #2c2c2e; --accent: #3498db; }
+        body { margin: 0; background: var(--bg); color: white; font-family: 'Segoe UI', sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
         
-        header { height: 45px; background: var(--panel); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); z-index: 100; }
+        /* Barre de contrôle supérieure */
+        header { 
+            height: 50px; background: var(--panel); display: flex; align-items: center; 
+            justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border);
+        }
+
+        .mode-selector { display: flex; background: #000; border-radius: 8px; padding: 3px; border: 1px solid var(--border); }
+        .mode-btn { 
+            padding: 6px 15px; border-radius: 6px; cursor: pointer; border: none; 
+            background: transparent; color: #888; font-size: 12px; font-weight: bold; 
+        }
+        .mode-btn.active { background: #222; color: var(--orange); }
+
+        .editor-layout { flex: 1; display: flex; overflow: hidden; }
+
+        /* Hiérarchie (Gauche) */
+        .hierarchy { width: 220px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .h-item { padding: 10px 15px; font-size: 13px; cursor: pointer; border-bottom: 1px solid #1f1f21; }
+        .h-item:hover { background: #252525; }
+        .h-item.selected { background: #2c2c2e; border-left: 3px solid var(--orange); color: var(--orange); }
+
+        /* Zone de travail */
+        .work-area { flex: 1; position: relative; background: #000; }
+        #viewport-3d { width: 100%; height: 100%; }
+        #blueprint-area { width: 100%; height: 100%; display: none; background: #111; }
+
+        /* Floating Tools 3D */
+        .gizmo-tools { position: absolute; top: 15px; left: 15px; display: flex; gap: 5px; background: var(--panel); padding: 5px; border-radius: 8px; border: 1px solid var(--border); }
+        .gizmo-btn { background: #222; border: 1px solid #333; color: white; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
         
-        .editor-layout { flex: 1; display: flex; position: relative; }
-
-        /* Hiérarchie à gauche */
-        .hierarchy { width: 220px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; z-index: 10; }
-        .hierarchy-header { padding: 10px; font-size: 11px; color: #8e8e93; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 1px; }
-        #scene-tree { list-style: none; padding: 0; margin: 0; font-size: 13px; overflow-y: auto; }
-        .tree-item { padding: 8px 15px; cursor: pointer; border-left: 3px solid transparent; display: flex; align-items: center; gap: 8px; }
-        .tree-item:hover { background: #252525; }
-        .tree-item.selected { background: #2c2c2e; border-left-color: var(--orange); color: var(--orange); }
-
-        /* Viewport 3D */
-        #viewport { flex: 1; position: relative; background: #000; touch-action: none; }
-
-        /* Boutons d'outils flottants (Mobile Friendly) */
-        .floating-tools { position: absolute; top: 15px; right: 15px; display: flex; flex-direction: column; gap: 10px; }
-        .tool-btn { width: 45px; height: 45px; background: var(--panel); border: 1px solid var(--border); color: white; border-radius: 10px; cursor: pointer; font-size: 20px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .tool-btn:active { transform: scale(0.9); background: var(--orange); color: black; }
-
-        .btn-pub { background: var(--orange); border: none; padding: 6px 15px; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 12px; }
+        .publish-btn { background: var(--orange); border: none; padding: 8px 20px; border-radius: 6px; font-weight: bold; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <header>
-    <div style="font-weight: 900; font-size: 14px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
-    <button class="btn-pub">PUBLIER</button>
+    <div style="font-weight: 900; font-size: 16px;">INFINITY <span style="color:var(--orange)">STUDIO</span></div>
+    
+    <div class="mode-selector">
+        <button id="btn-3d" class="mode-btn active" onclick="setMode('3d')">VIEWPORT 3D</button>
+        <button id="btn-bp" class="mode-btn" onclick="setMode('bp')">BLUEPRINTS</button>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+        <button class="mode-btn" onclick="addCube()">+ Cube</button>
+        <button class="publish-btn">PUBLIER</button>
+    </div>
 </header>
 
 <div class="editor-layout">
     <aside class="hierarchy">
-        <div class="hierarchy-header">Scène / Hiérarchie</div>
-        <ul id="scene-tree">
-            </ul>
+        <div style="padding: 10px; font-size: 11px; color: #555; border-bottom: 1px solid var(--border);">HIÉRARCHIE SCÈNE</div>
+        <div id="hierarchy-list"></div>
     </aside>
 
-    <main id="viewport">
-        <div class="floating-tools">
-            <button class="tool-btn" onclick="addMesh('cube')">📦</button>
-            <button class="tool-btn" onclick="addMesh('sphere')">🔴</button>
+    <main class="work-area">
+        <div id="viewport-3d">
+            <div class="gizmo-tools">
+                <button class="gizmo-btn" onclick="setGizmo('translate')">✛</button>
+                <button class="gizmo-btn" onclick="setGizmo('rotate')">🔄</button>
+                <button class="gizmo-btn" onclick="setGizmo('scale')">↗</button>
+            </div>
         </div>
+
+        <canvas id="blueprint-area"></canvas>
     </main>
 </div>
 
 <script>
-    // --- INITIALISATION ---
-    const viewport = document.getElementById('viewport');
+    // --- 1. SETUP 3D ---
+    const viewport = document.getElementById('viewport-3d');
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0f0f0f);
-
+    scene.background = new THREE.Color(0x0a0a0a);
     const camera = new THREE.PerspectiveCamera(75, viewport.clientWidth / viewport.clientHeight, 0.1, 1000);
     camera.position.set(5, 5, 5);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setPixelRatio(window.devicePixelRatio);
     renderer.setSize(viewport.clientWidth, viewport.clientHeight);
     viewport.appendChild(renderer.domElement);
 
-    // Lumières & Grille
-    scene.add(new THREE.GridHelper(20, 20, 0x444444, 0x222222));
-    scene.add(new THREE.AmbientLight(0xffffff, 0.5));
-    const sun = new THREE.DirectionalLight(0xffffff, 0.8);
-    sun.position.set(5, 10, 5);
-    scene.add(sun);
+    scene.add(new THREE.GridHelper(20, 20, 0x333333, 0x222222));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.6));
 
-    // --- CONTRÔLES ---
-    // OrbitControls : Caméra (rotation avec 1 doigt, pan avec 2)
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
+    const transform = new THREE.TransformControls(camera, renderer.domElement);
+    scene.add(transform);
+    transform.addEventListener('dragging-changed', e => controls.enabled = !e.value);
 
-    // TransformControls : Manipulation des objets (Gizmos)
-    const transformControl = new THREE.TransformControls(camera, renderer.domElement);
-    scene.add(transformControl);
-
-    // Désactiver la caméra quand on touche le Gizmo
-    transformControl.addEventListener('dragging-changed', (event) => {
-        controls.enabled = !event.value;
-    });
-
-    // --- LOGIQUE ÉDITEUR ---
     let objects = [];
-    let selectedObject = null;
+    let selected = null;
 
-    function addMesh(type) {
-        let geo = (type === 'cube') ? new THREE.BoxGeometry(1, 1, 1) : new THREE.SphereGeometry(0.7, 32, 32);
-        let mat = new THREE.MeshStandardMaterial({ color: 0xf29979 });
-        let mesh = new THREE.Mesh(geo, mat);
-        
-        mesh.name = type.charAt(0).toUpperCase() + type.slice(1) + "_" + (objects.length + 1);
+    function addCube() {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
+        mesh.name = "Cube_" + (objects.length + 1);
         scene.add(mesh);
         objects.push(mesh);
-        
         updateHierarchy();
-        selectObject(mesh);
+        select(mesh);
     }
 
-    function selectObject(obj) {
-        selectedObject = obj;
-        transformControl.attach(obj);
+    function select(obj) {
+        selected = obj;
+        transform.attach(obj);
         updateHierarchy();
     }
+
+    function setGizmo(mode) { transform.setMode(mode); }
 
     function updateHierarchy() {
-        const tree = document.getElementById('scene-tree');
-        tree.innerHTML = "";
-        objects.forEach(obj => {
-            const li = document.createElement('li');
-            li.className = "tree-item" + (selectedObject === obj ? " selected" : "");
-            li.innerHTML = `<span>${obj.type === 'Mesh' ? '🔹' : '🔸'}</span> ${obj.name}`;
-            li.onclick = () => selectObject(obj);
-            tree.appendChild(li);
-        });
+        const list = document.getElementById('hierarchy-list');
+        list.innerHTML = objects.map(obj => `
+            <div class="h-item ${selected === obj ? 'selected' : ''}" onclick="selectByName('${obj.name}')">
+                📦 ${obj.name}
+            </div>
+        `).join('');
+    }
+    window.selectByName = (name) => select(objects.find(o => o.name === name));
+
+    // --- 2. SETUP NO-CODE (BLUEPRINTS) ---
+    const graph = new LGraph();
+    const bpCanvas = new LGraphCanvas("#blueprint-area", graph);
+    bpCanvas.background_image = ""; // Supprimer le logo LiteGraph
+
+    // Enregistrement de nœuds basiques personnalisés
+    function registerBasicNodes() {
+        // Nœud : Start
+        function NodeStart() { this.addOutput("On Start", LiteGraph.EVENT); }
+        NodeStart.title = "Event: Start";
+        LiteGraph.registerNodeType("logic/start", NodeStart);
+
+        // Nœud : Move
+        function NodeMove() {
+            this.addInput("Exec", LiteGraph.ACTION);
+            this.addInput("Speed", "number");
+            this.addProperty("speed", 0.1);
+        }
+        NodeMove.title = "Action: Move Forward";
+        LiteGraph.registerNodeType("logic/move", NodeMove);
+    }
+    registerBasicNodes();
+
+    // Ajouter des nœuds par défaut
+    const nStart = LiteGraph.createNode("logic/start");
+    nStart.pos = [50, 50];
+    graph.add(nStart);
+
+    const nMove = LiteGraph.createNode("logic/move");
+    nMove.pos = [250, 50];
+    graph.add(nMove);
+    nStart.connect(0, nMove, 0);
+
+    // --- 3. GESTION DES MODES & RESPONSIVE ---
+    function setMode(mode) {
+        const v3d = document.getElementById('viewport-3d');
+        const vbp = document.getElementById('blueprint-area');
+        document.getElementById('btn-3d').classList.toggle('active', mode === '3d');
+        document.getElementById('btn-bp').classList.toggle('active', mode === 'bp');
+
+        if(mode === '3d') {
+            v3d.style.display = 'block'; vbp.style.display = 'none';
+        } else {
+            v3d.style.display = 'none'; vbp.style.display = 'block';
+            bpCanvas.resize(vbp.parentElement.clientWidth, vbp.parentElement.clientHeight);
+        }
     }
 
-    // Sélection au clic (Raycaster)
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
-    viewport.addEventListener('pointerdown', (e) => {
-        const rect = renderer.domElement.getBoundingClientRect();
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-        raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(objects);
-
-        if (intersects.length > 0) {
-            selectObject(intersects[0].object);
-        }
-    });
-
-    // Boucle de rendu
     function animate() {
         requestAnimationFrame(animate);
         controls.update();
@@ -152,7 +189,6 @@
     }
     animate();
 
-    // Responsive
     window.addEventListener('resize', () => {
         camera.aspect = viewport.clientWidth / viewport.clientHeight;
         camera.updateProjectionMatrix();
