@@ -11,40 +11,37 @@
         :root { --bg: #050505; --ui: #121214; --orange: #f29979; --border: #252528; }
         body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         nav { height: 50px; background: var(--ui); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); }
-        .main-container { flex: 1; display: flex; }
+        .main { flex: 1; display: flex; }
         #viewport { flex: 1; }
-        #logic-panel { width: 300px; background: var(--ui); border-left: 1px solid var(--border); padding: 10px; display: flex; flex-direction: column; }
-        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; cursor: pointer; margin-bottom: 5px; font-weight: bold; }
-        .publish-btn { background: var(--orange); color: black; border: none; padding: 10px 20px; border-radius: 5px; font-weight: 900; }
-        .node { background: #1e1e21; border-top: 3px solid var(--orange); padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 12px; }
+        #logic-panel { width: 300px; background: var(--ui); border-left: 1px solid var(--border); padding: 10px; }
+        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; cursor: pointer; margin-bottom: 5px; width: 100%; font-weight: bold; }
+        .publish-btn { background: var(--orange); color: black; border: none; padding: 10px 20px; border-radius: 5px; font-weight: 900; cursor: pointer; }
     </style>
 </head>
 <body>
 
 <nav>
     <div style="font-weight: 900; color: var(--orange);">INFINITY STUDIO</div>
-    <div style="display:flex; gap:8px;">
-        <button class="btn" onclick="setGizmo('translate')">✛</button>
-        <button class="btn" onclick="setGizmo('rotate')">🔄</button>
-        <button class="btn" onclick="setGizmo('scale')">↔</button>
+    <div style="display:flex; gap:10px;">
+        <button onclick="setGizmo('translate')" style="width:40px" class="btn">✛</button>
+        <button onclick="setGizmo('rotate')" style="width:40px" class="btn">🔄</button>
+        <button onclick="setGizmo('scale')" style="width:40px" class="btn">↔</button>
     </div>
     <button onclick="publish()" class="publish-btn">PUBLIER</button>
 </nav>
 
-<div class="main-container">
+<div class="main">
     <div id="viewport"></div>
     <div id="logic-panel">
-        <div style="color:#666; font-size:11px; margin-bottom:10px;">LOGIQUE VISUELLE</div>
-        <div id="nodes-container" style="flex:1; overflow-y:auto;"></div>
+        <div id="nodes-container"></div>
         <button class="btn" onclick="addCube()">+ AJOUTER BLOC</button>
-        <button class="btn" onclick="addLogicNode()" style="border-color:var(--orange);">+ ÉVÉNEMENT</button>
+        <button class="btn" onclick="addLogicNode()" style="border-color:var(--orange);">+ LOGIQUE</button>
     </div>
 </div>
 
 <script>
-    // --- 3D SCENE ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / (window.innerHeight - 50), 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / 50, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth - 300, window.innerHeight - 50);
     document.getElementById('viewport').appendChild(renderer.domElement);
@@ -64,9 +61,9 @@
     function addCube(data = null) {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xcccccc}));
         if(data) {
-            mesh.position.copy(data.pos);
+            mesh.position.set(data.pos.x, data.pos.y, data.pos.z);
             mesh.rotation.set(data.rot.x, data.rot.y, data.rot.z);
-            mesh.scale.copy(data.scale);
+            mesh.scale.set(data.scale.x, data.scale.y, data.scale.z);
         }
         scene.add(mesh);
         gameObjects.push(mesh);
@@ -74,47 +71,33 @@
         return mesh;
     }
 
-    function setGizmo(mode) { transform.setMode(mode); }
+    function setGizmo(m) { transform.setMode(m); }
 
-    function addLogicNode() {
-        const id = Date.now();
-        const html = `<div class="node" id="n-${id}">Quand: <b>Clic</b><br>Action: <b>Rotation</b></div>`;
-        document.getElementById('nodes-container').innerHTML += html;
-        logicNodes.push({id, type: 'click', action: 'rotate'});
-    }
-
-    // --- PUBLISH & UPDATE ---
     async function publish() {
-        const name = new URLSearchParams(window.location.search).get('name') || "Sans Nom";
-        
-        // On capture l'état actuel de tous les cubes
-        const mapData = gameObjects.map(o => ({
-            pos: { x: o.position.x, y: o.position.y, z: o.position.z },
-            rot: { x: o.rotation.x, y: o.rotation.y, z: o.rotation.z },
-            scale: { x: o.scale.x, y: o.scale.y, z: o.scale.z }
-        }));
-
-        const payload = { title: name, map: mapData, logic: logicNodes };
-
-        try {
-            const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload),
-                credentials: 'include'
-            });
-            const result = await res.json();
-            alert(result.mode === "updated" ? "✅ Mis à jour !" : "🚀 Publié !");
-        } catch (e) { alert("❌ Erreur réseau"); }
+        const name = new URLSearchParams(window.location.search).get('name') || "Sans Titre";
+        const payload = {
+            title: name,
+            map: gameObjects.map(o => ({
+                pos: o.position,
+                rot: {x: o.rotation.x, y: o.rotation.y, z: o.rotation.z},
+                scale: o.scale
+            })),
+            logic: logicNodes
+        };
+        const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include'
+        });
+        if(res.ok) alert("✅ Sauvegardé !");
     }
 
-    // --- CHARGEMENT AUTO SI EXISTANT ---
     async function loadGame() {
         const name = new URLSearchParams(window.location.search).get('name');
         const res = await fetch('https://infinity.pamplemouche.com/api/get-games');
         const games = await res.json();
         const myGame = games.find(g => g.title === name);
-        
         if(myGame && myGame.map_data) {
             const data = JSON.parse(myGame.map_data);
             data.forEach(obj => addCube(obj));
@@ -123,7 +106,7 @@
 
     function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
-    loadGame(); // Charge le jeu au lancement pour pouvoir le modifier
+    loadGame();
 </script>
 </body>
 </html>
