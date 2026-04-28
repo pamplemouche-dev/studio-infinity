@@ -3,28 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Editor</title>
+    <title>Infinity Studio | Editor</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
     <style>
         :root { --bg: #050505; --ui: #121214; --orange: #f29979; --border: #252528; }
         body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
-        nav { height: 55px; background: var(--ui); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); }
-        .main-zone { flex: 1; display: flex; }
+        nav { height: 50px; background: var(--ui); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); }
+        .main-container { flex: 1; display: flex; }
         #viewport { flex: 1; }
-        #logic-panel { width: 300px; background: var(--ui); border-left: 1px solid var(--border); display: flex; flex-direction: column; padding: 10px; }
-        .node { background: #1e1e21; border-top: 3px solid var(--orange); padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 12px; }
-        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #logic-panel { width: 300px; background: var(--ui); border-left: 1px solid var(--border); padding: 10px; display: flex; flex-direction: column; }
+        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; cursor: pointer; margin-bottom: 5px; font-weight: bold; }
         .publish-btn { background: var(--orange); color: black; border: none; padding: 10px 20px; border-radius: 5px; font-weight: 900; }
-        select { width: 100%; background: #000; color: white; border: 1px solid #444; margin: 5px 0; }
+        .node { background: #1e1e21; border-top: 3px solid var(--orange); padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 12px; }
     </style>
 </head>
 <body>
 
 <nav>
     <div style="font-weight: 900; color: var(--orange);">INFINITY STUDIO</div>
-    <div style="display:flex; gap:10px;">
+    <div style="display:flex; gap:8px;">
         <button class="btn" onclick="setGizmo('translate')">✛</button>
         <button class="btn" onclick="setGizmo('rotate')">🔄</button>
         <button class="btn" onclick="setGizmo('scale')">↔</button>
@@ -32,22 +31,22 @@
     <button onclick="publish()" class="publish-btn">PUBLIER</button>
 </nav>
 
-<div class="main-zone">
+<div class="main-container">
     <div id="viewport"></div>
     <div id="logic-panel">
-        <div style="font-weight:bold; color:#666; margin-bottom:10px;">VISUAL LOGIC</div>
+        <div style="color:#666; font-size:11px; margin-bottom:10px;">LOGIQUE VISUELLE</div>
         <div id="nodes-container" style="flex:1; overflow-y:auto;"></div>
-        <button class="btn" onclick="addCube()" style="margin-bottom:5px;">+ OBJET 3D</button>
+        <button class="btn" onclick="addCube()">+ AJOUTER BLOC</button>
         <button class="btn" onclick="addLogicNode()" style="border-color:var(--orange);">+ ÉVÉNEMENT</button>
     </div>
 </div>
 
 <script>
-    // --- 3D SETUP ---
+    // --- 3D SCENE ---
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / (window.innerHeight - 55), 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 300) / (window.innerHeight - 50), 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(window.innerWidth - 300, window.innerHeight - 55);
+    renderer.setSize(window.innerWidth - 300, window.innerHeight - 50);
     document.getElementById('viewport').appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
@@ -62,47 +61,40 @@
     let gameObjects = [];
     let logicNodes = [];
 
-    function addCube() {
+    function addCube(data = null) {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xcccccc}));
+        if(data) {
+            mesh.position.copy(data.pos);
+            mesh.rotation.set(data.rot.x, data.rot.y, data.rot.z);
+            mesh.scale.copy(data.scale);
+        }
         scene.add(mesh);
         gameObjects.push(mesh);
         transform.attach(mesh);
+        return mesh;
     }
 
     function setGizmo(mode) { transform.setMode(mode); }
 
-    // --- LOGIC SYSTEM ---
     function addLogicNode() {
         const id = Date.now();
-        const nodeHtml = `
-            <div class="node" id="n-${id}">
-                QUAND : <select onchange="updateNode(${id},'e',this.value)"><option value="click">Clic</option><option value="touch">Touch</option></select>
-                ALORS : <select onchange="updateNode(${id},'a',this.value)"><option value="rot">Rotation</option><option value="hide">Cacher</option></select>
-                <button onclick="document.getElementById('n-${id}').remove()" style="color:red; background:none; border:none; font-size:10px;">Supprimer</button>
-            </div>
-        `;
-        document.getElementById('nodes-container').innerHTML += nodeHtml;
-        logicNodes.push({id, e: 'click', a: 'rot'});
+        const html = `<div class="node" id="n-${id}">Quand: <b>Clic</b><br>Action: <b>Rotation</b></div>`;
+        document.getElementById('nodes-container').innerHTML += html;
+        logicNodes.push({id, type: 'click', action: 'rotate'});
     }
 
-    function updateNode(id, k, v) {
-        const n = logicNodes.find(x => x.id === id);
-        if(n) n[k] = v;
-    }
-
-    // --- PUBLICATION (RETOUR STABILITÉ) ---
+    // --- PUBLISH & UPDATE ---
     async function publish() {
-        const name = new URLSearchParams(window.location.search).get('name') || "Sans Titre";
+        const name = new URLSearchParams(window.location.search).get('name') || "Sans Nom";
         
-        const payload = {
-            title: name,
-            map: gameObjects.map(o => ({
-                pos: o.position,
-                rot: {x: o.rotation.x, y: o.rotation.y, z: o.rotation.z},
-                scale: o.scale
-            })),
-            logic: logicNodes
-        };
+        // On capture l'état actuel de tous les cubes
+        const mapData = gameObjects.map(o => ({
+            pos: { x: o.position.x, y: o.position.y, z: o.position.z },
+            rot: { x: o.rotation.x, y: o.rotation.y, z: o.rotation.z },
+            scale: { x: o.scale.x, y: o.scale.y, z: o.scale.z }
+        }));
+
+        const payload = { title: name, map: mapData, logic: logicNodes };
 
         try {
             const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
@@ -111,20 +103,27 @@
                 body: JSON.stringify(payload),
                 credentials: 'include'
             });
+            const result = await res.json();
+            alert(result.mode === "updated" ? "✅ Mis à jour !" : "🚀 Publié !");
+        } catch (e) { alert("❌ Erreur réseau"); }
+    }
 
-            if (res.ok) {
-                const r = await res.json();
-                alert("✅ Publié avec succès !");
-            } else {
-                alert("❌ Erreur serveur : " + res.status);
-            }
-        } catch (e) {
-            alert("❌ Erreur réseau : " + e.message);
+    // --- CHARGEMENT AUTO SI EXISTANT ---
+    async function loadGame() {
+        const name = new URLSearchParams(window.location.search).get('name');
+        const res = await fetch('https://infinity.pamplemouche.com/api/get-games');
+        const games = await res.json();
+        const myGame = games.find(g => g.title === name);
+        
+        if(myGame && myGame.map_data) {
+            const data = JSON.parse(myGame.map_data);
+            data.forEach(obj => addCube(obj));
         }
     }
 
     function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
+    loadGame(); // Charge le jeu au lancement pour pouvoir le modifier
 </script>
 </body>
 </html>
