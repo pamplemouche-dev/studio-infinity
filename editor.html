@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Infinity Studio | Editor</title>
+    <title>Infinity Editor | No-Code 3D</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
@@ -11,52 +11,51 @@
         :root { --bg: #050505; --ui: #121214; --orange: #f29979; --border: #252528; }
         body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
         
-        /* Toolbar style Roblox Studio */
-        nav { height: 50px; background: var(--ui); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; }
-        .tool-group { display: flex; gap: 8px; background: #000; padding: 4px; border-radius: 6px; }
-        
-        .main-container { flex: 1; display: flex; }
-        #viewport { flex: 1; position: relative; }
-        
-        /* Visual Scripting (UE5 style) */
-        #logic-panel { width: 320px; background: var(--ui); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
-        .node-box { background: #1e1e21; border: 1px solid #444; border-radius: 8px; padding: 12px; margin: 10px; font-size: 13px; border-top: 3px solid var(--orange); }
-        
-        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 7px 14px; border-radius: 5px; cursor: pointer; font-size: 12px; font-weight: bold; }
-        .btn:hover { background: #3a3a3d; }
+        nav { height: 50px; background: var(--ui); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; z-index: 10; }
+        .tool-btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 6px 12px; border-radius: 5px; cursor: pointer; font-size: 18px; }
         .publish-btn { background: var(--orange); color: black; border: none; padding: 8px 20px; border-radius: 5px; font-weight: 900; cursor: pointer; }
+
+        .main-layout { flex: 1; display: flex; }
+        #viewport { flex: 1; cursor: crosshair; }
+
+        /* Visual Logic Panel (Style UE5) */
+        #logic-panel { width: 320px; background: var(--ui); border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+        .panel-header { padding: 15px; font-size: 12px; font-weight: bold; color: #888; border-bottom: 1px solid var(--border); }
+        .node-list { flex: 1; overflow-y: auto; padding: 10px; }
+        .node { background: #1e1e21; border-top: 3px solid var(--orange); border-radius: 6px; padding: 12px; margin-bottom: 15px; font-size: 13px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        select { background: #000; color: white; border: 1px solid #444; padding: 5px; width: 100%; margin-top: 5px; border-radius: 4px; }
+        
+        .footer-tools { padding: 15px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); }
     </style>
 </head>
 <body>
 
 <nav>
-    <div style="font-weight: 900; color: var(--orange); letter-spacing: 1px;">INFINITY STUDIO</div>
-    
-    <div class="tool-group">
-        <button class="btn" onclick="setGizmo('translate')">✛</button>
-        <button class="btn" onclick="setGizmo('rotate')">🔄</button>
-        <button class="btn" onclick="setGizmo('scale')">↔</button>
+    <div style="font-weight: 900; color: var(--orange);">INFINITY <span style="color:white">STUDIO</span></div>
+    <div style="display:flex; gap:10px;">
+        <button class="tool-btn" onclick="setGizmo('translate')">✛</button>
+        <button class="tool-btn" onclick="setGizmo('rotate')">🔄</button>
+        <button class="tool-btn" onclick="setGizmo('scale')">↔</button>
     </div>
-
     <button onclick="publish()" class="publish-btn">PUBLIER</button>
 </nav>
 
-<div class="main-container">
+<div class="main-layout">
     <div id="viewport"></div>
     
     <div id="logic-panel">
-        <div style="padding:15px; font-weight:bold; border-bottom:1px solid var(--border); font-size:12px; color:#888;">LOGIQUE VISUELLE (NO-CODE)</div>
-        <div id="nodes-list" style="flex:1; overflow-y:auto;">
+        <div class="panel-header">VISUAL LOGIC (NO-CODE)</div>
+        <div class="node-list" id="nodes-container">
             </div>
-        <div style="padding:15px; display:flex; flex-direction:column; gap:10px;">
-            <button class="btn" onclick="addCube()" style="background:#222;">+ AJOUTER BLOC 3D</button>
-            <button class="btn" onclick="addLogicNode()" style="border-color:var(--orange);">+ ÉVÉNEMENT (NODE)</button>
+        <div class="footer-tools">
+            <button class="tool-btn" style="font-size:13px;" onclick="addCube()">+ AJOUTER CUBE</button>
+            <button class="tool-btn" style="font-size:13px; border-color:var(--orange);" onclick="addLogicNode()">+ ÉVÉNEMENT LOGIQUE</button>
         </div>
     </div>
 </div>
 
 <script>
-    // --- SETUP 3D ---
+    // --- INITIALISATION 3D ---
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 320) / (window.innerHeight - 50), 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -70,13 +69,13 @@
 
     scene.add(new THREE.GridHelper(30, 30, 0x333333, 0x222222));
     scene.add(new THREE.AmbientLight(0xffffff, 1));
-    camera.position.set(8, 8, 8);
+    camera.position.set(10, 10, 10);
 
     let gameObjects = [];
-    let logicData = [];
+    let logicNodes = [];
 
     function addCube() {
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xcccccc}));
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({color: 0xf29979}));
         scene.add(mesh);
         gameObjects.push(mesh);
         transform.attach(mesh);
@@ -84,38 +83,73 @@
 
     function setGizmo(mode) { transform.setMode(mode); }
 
-    // --- VISUAL CODING (NODES) ---
+    // --- VISUAL CODING (SYSTEME DE NODES) ---
     function addLogicNode() {
         const id = Date.now();
         const nodeHtml = `
-            <div class="node-box" id="node-${id}">
-                <div style="margin-bottom:8px;"><strong>Événement :</strong> <select><option>Au clic</option><option>Au contact</option></select></div>
-                <div><strong>Action :</strong> <select><option>Rotation</option><option>Disparaître</option><option>Sauter</option></select></div>
-                <button onclick="this.parentElement.remove()" style="margin-top:10px; background:none; border:none; color:#ff4444; font-size:10px; cursor:pointer;">Supprimer</button>
+            <div class="node" id="node-${id}">
+                <strong>QUAND :</strong>
+                <select onchange="updateNode(${id}, 'event', this.value)">
+                    <option value="click">Au Clic</option>
+                    <option value="touch">Au Contact</option>
+                    <option value="start">Au Démarrage</option>
+                </select>
+                <div style="margin-top:10px;"><strong>ALORS :</strong></div>
+                <select onchange="updateNode(${id}, 'action', this.value)">
+                    <option value="rotate">Rotation</option>
+                    <option value="jump">Sauter</option>
+                    <option value="hide">Disparaître</option>
+                </select>
+                <button onclick="removeNode(${id})" style="margin-top:10px; background:none; border:none; color:#ff4444; font-size:10px; cursor:pointer;">Supprimer</button>
             </div>
         `;
-        document.getElementById('nodes-list').innerHTML += nodeHtml;
+        document.getElementById('nodes-container').innerHTML += nodeHtml;
+        logicNodes.push({ id, event: 'click', action: 'rotate' });
     }
 
+    function updateNode(id, key, value) {
+        const node = logicNodes.find(n => n.id === id);
+        if(node) node[key] = value;
+    }
+
+    function removeNode(id) {
+        logicNodes = logicNodes.filter(n => n.id !== id);
+        document.getElementById(`node-${id}`).remove();
+    }
+
+    // --- PUBLICATION ---
     async function publish() {
         const urlParams = new URLSearchParams(window.location.search);
-        const name = urlParams.get('name') || "Sans Titre";
+        const gameName = urlParams.get('name') || "Mon Monde";
 
         const data = {
-            title: name,
-            map: gameObjects.map(o => ({ pos: o.position, rot: o.rotation, scale: o.scale })),
-            logic: [] // On pourrait parser les selects ici
+            title: gameName,
+            map: gameObjects.map(o => ({ 
+                pos: o.position, 
+                rot: {x: o.rotation.x, y: o.rotation.y, z: o.rotation.z}, 
+                scale: o.scale 
+            })),
+            logic: logicNodes
         };
 
-        const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        });
-        alert("Projet synchronisé avec le Launcher !");
+        try {
+            const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if(res.ok) alert("🚀 Jeu publié !");
+        } catch(e) { alert("Erreur de connexion au serveur."); }
     }
 
     function animate() { requestAnimationFrame(animate); renderer.render(scene, camera); }
     animate();
+
+    window.addEventListener('resize', () => {
+        camera.aspect = (window.innerWidth - 320) / (window.innerHeight - 50);
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth - 320, window.innerHeight - 50);
+    });
 </script>
 </body>
 </html>
