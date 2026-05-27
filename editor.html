@@ -341,7 +341,32 @@
                 <button onclick="closeModal()">Cancel</button>
             </div>
         </div>
+    
+    <!-- Scratch Blocks Palette -->
+    <div class="modal" id="block-palette-modal">
+        <div class="modal-content">
+            <h3>Add Block</h3>
+            <div id="blocks-palette"></div>
+        </div>
     </div>
+    
+    <!-- Script Editor Modal -->
+    <div class="modal" id="script-editor-modal">
+        <div class="modal-content" style="max-width: 600px; max-height: 90vh;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <h3 id="script-editor-title">Script Editor</h3>
+                <button onclick="closeScriptEditor()" style="margin: 0;">Close</button>
+            </div>
+            <div id="script-blocks-workspace" style="background: #f5f5f5; border: 1px solid #ddd; min-height: 300px; border-radius: 4px; padding: 10px; overflow-y: auto;">
+            </div>
+            <div style="margin-top: 10px;">
+                <button onclick="addBlockToScript()">+ Add Block</button>
+                <button onclick="runScript()">Run Script</button>
+            </div>
+        </div>
+    </div>
+    
+</div>
     
     <script>
         // ===== Global Scene Setup =====
@@ -794,6 +819,232 @@
             
             animate();
         });
-    </script>
+    
+        
+        // ===== Scratch Blocks System =====
+        const SCRATCH_BLOCKS = {
+            motion: {
+                color: 'var(--scratch-motion)',
+                blocks: [
+                    { name: 'Move Forward', params: ['steps'] },
+                    { name: 'Move Backward', params: ['steps'] },
+                    { name: 'Turn Left', params: ['degrees'] },
+                    { name: 'Turn Right', params: ['degrees'] },
+                    { name: 'Go To', params: ['x', 'y', 'z'] },
+                    { name: 'Glide To', params: ['x', 'y', 'z', 'seconds'] }
+                ]
+            },
+            looks: {
+                color: 'var(--scratch-looks)',
+                blocks: [
+                    { name: 'Show', params: [] },
+                    { name: 'Hide', params: [] },
+                    { name: 'Set Color', params: ['color'] },
+                    { name: 'Change Scale', params: ['scale'] },
+                    { name: 'Say', params: ['text'] },
+                    { name: 'Think', params: ['text'] }
+                ]
+            },
+            sound: {
+                color: 'var(--scratch-sound)',
+                blocks: [
+                    { name: 'Play Sound', params: ['sound'] },
+                    { name: 'Stop All Sounds', params: [] },
+                    { name: 'Set Volume', params: ['volume'] },
+                    { name: 'Change Volume', params: ['change'] }
+                ]
+            },
+            events: {
+                color: 'var(--scratch-events)',
+                blocks: [
+                    { name: 'On Start', params: [] },
+                    { name: 'On Key Pressed', params: ['key'] },
+                    { name: 'On Clicked', params: [] },
+                    { name: 'On Collision', params: ['object'] },
+                    { name: 'Broadcast', params: ['message'] }
+                ]
+            },
+            control: {
+                color: 'var(--scratch-control)',
+                blocks: [
+                    { name: 'Wait', params: ['seconds'] },
+                    { name: 'Repeat', params: ['count'] },
+                    { name: 'Repeat Until', params: ['condition'] },
+                    { name: 'If Then', params: ['condition'] },
+                    { name: 'If Then Else', params: ['condition'] },
+                    { name: 'Stop Script', params: [] }
+                ]
+            },
+            sensing: {
+                color: 'var(--scratch-sensing)',
+                blocks: [
+                    { name: 'Is Key Pressed', params: ['key'] },
+                    { name: 'Is Touching', params: ['object'] },
+                    { name: 'Get Distance To', params: ['object'] },
+                    { name: 'Get X Position', params: [] },
+                    { name: 'Get Y Position', params: [] },
+                    { name: 'Get Z Position', params: [] }
+                ]
+            },
+            operators: {
+                color: 'var(--scratch-operators)',
+                blocks: [
+                    { name: 'Add', params: ['a', 'b'] },
+                    { name: 'Subtract', params: ['a', 'b'] },
+                    { name: 'Multiply', params: ['a', 'b'] },
+                    { name: 'Divide', params: ['a', 'b'] },
+                    { name: 'Modulo', params: ['a', 'b'] },
+                    { name: 'Greater Than', params: ['a', 'b'] },
+                    { name: 'Less Than', params: ['a', 'b'] },
+                    { name: 'Equals', params: ['a', 'b'] }
+                ]
+            },
+            variables: {
+                color: 'var(--scratch-variables)',
+                blocks: [
+                    { name: 'Set Variable', params: ['name', 'value'] },
+                    { name: 'Change Variable', params: ['name', 'value'] },
+                    { name: 'Get Variable', params: ['name'] }
+                ]
+            }
+        };
+        
+        let currentEditingScript = null;
+        
+        function openScriptEditor(scriptIndex) {
+            if (!selectedObject || !selectedObject.userData.scripts) return;
+            
+            currentEditingScript = scriptIndex;
+            const script = selectedObject.userData.scripts[scriptIndex];
+            
+            document.getElementById('script-editor-title').textContent = `Edit: ${script.name}`;
+            document.getElementById('script-editor-modal').classList.add('active');
+            
+            renderScriptBlocks();
+        }
+        
+        function closeScriptEditor() {
+            document.getElementById('script-editor-modal').classList.remove('active');
+            currentEditingScript = null;
+        }
+        
+        function renderScriptBlocks() {
+            if (currentEditingScript === null || !selectedObject) return;
+            
+            const script = selectedObject.userData.scripts[currentEditingScript];
+            const workspace = document.getElementById('script-blocks-workspace');
+            workspace.innerHTML = '';
+            
+            if (!script.nodes || script.nodes.length === 0) {
+                workspace.innerHTML = '<p style="color: #999;">No blocks added yet</p>';
+                return;
+            }
+            
+            script.nodes.forEach((node, index) => {
+                const blockEl = document.createElement('div');
+                blockEl.className = 'block-node';
+                blockEl.style.cssText = `
+                    background: ${node.color};
+                    color: white;
+                    padding: 8px;
+                    margin: 4px 0;
+                    border-radius: 4px;
+                    cursor: grab;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                `;
+                blockEl.innerHTML = `
+                    <span>${node.name}</span>
+                    <button onclick="removeBlockFromScript(${index})" style="padding: 2px 6px; margin: 0; background: rgba(0,0,0,0.3);">×</button>
+                `;
+                workspace.appendChild(blockEl);
+            });
+        }
+        
+        function addBlockToScript() {
+            const palette = document.getElementById('blocks-palette');
+            palette.innerHTML = '';
+            
+            Object.keys(SCRATCH_BLOCKS).forEach(category => {
+                const categoryData = SCRATCH_BLOCKS[category];
+                const categoryEl = document.createElement('div');
+                categoryEl.style.marginBottom = '12px';
+                
+                const title = document.createElement('h4');
+                title.textContent = category.charAt(0).toUpperCase() + category.slice(1);
+                title.style.margin = '0 0 6px 0';
+                categoryEl.appendChild(title);
+                
+                categoryData.blocks.forEach(block => {
+                    const blockBtn = document.createElement('button');
+                    blockBtn.textContent = block.name;
+                    blockBtn.className = `block block-${category}`;
+                    blockBtn.style.cssText = `margin: 2px;`;
+                    blockBtn.onclick = () => {
+                        addBlockToCurrentScript(block.name, categoryData.color, category);
+                        document.getElementById('block-palette-modal').classList.remove('active');
+                        renderScriptBlocks();
+                    };
+                    categoryEl.appendChild(blockBtn);
+                });
+                
+                palette.appendChild(categoryEl);
+            });
+            
+            document.getElementById('block-palette-modal').classList.add('active');
+        }
+        
+        function addBlockToCurrentScript(blockName, blockColor, category) {
+            if (currentEditingScript === null || !selectedObject) return;
+            
+            const script = selectedObject.userData.scripts[currentEditingScript];
+            
+            const block = {
+                id: script.nodeCounter++,
+                name: blockName,
+                category: category,
+                color: blockColor,
+                params: {}
+            };
+            
+            script.nodes.push(block);
+        }
+        
+        function removeBlockFromScript(index) {
+            if (currentEditingScript === null || !selectedObject) return;
+            
+            const script = selectedObject.userData.scripts[currentEditingScript];
+            script.nodes.splice(index, 1);
+            renderScriptBlocks();
+        }
+        
+        function runScript() {
+            if (currentEditingScript === null || !selectedObject) return;
+            
+            const script = selectedObject.userData.scripts[currentEditingScript];
+            console.log('Running script:', script.name);
+            console.log('Blocks:', script.nodes);
+            alert(`Executed script: ${script.name} with ${script.nodes.length} blocks`);
+        }
+        
+        // Update updateInspector to include script editing buttons
+        const originalUpdateInspector = window.updateInspector;
+        window.updateInspector = function(obj) {
+            originalUpdateInspector.call(this, obj);
+            
+            if (!obj || !obj.userData.scripts) return;
+            
+            // Add edit buttons to script items
+            const scriptItems = document.querySelectorAll('.script-item');
+            scriptItems.forEach((item, idx) => {
+                const editBtn = document.createElement('button');
+                editBtn.textContent = 'Edit';
+                editBtn.style.marginLeft = '4px';
+                editBtn.onclick = () => openScriptEditor(idx);
+                item.appendChild(editBtn);
+            });
+        };
+</script>
 </body>
 </html>
