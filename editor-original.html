@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Infinity Studio | Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <style>
+        :root { --bg: #050505; --ui: #121214; --orange: #f29979; --border: #252528; }
+        body { margin: 0; background: var(--bg); color: white; font-family: sans-serif; overflow: hidden; display: flex; flex-direction: column; height: 100vh; }
+        nav { height: 50px; background: var(--ui); display: flex; align-items: center; justify-content: space-between; padding: 0 15px; border-bottom: 1px solid var(--border); gap: 12px; }
+        .main { flex: 1; display: flex; min-height: 0; }
+        #viewport { flex: 1; position: relative; }
+        #logic-panel { width: 300px; background: var(--ui); border-left: 1px solid var(--border); padding: 10px; }
+        .btn { background: #2a2a2d; border: 1px solid #444; color: white; padding: 8px; border-radius: 5px; cursor: pointer; margin-bottom: 5px; width: 100%; font-weight: bold; }
+        .toolbar-btn { width: 40px; margin: 0; }
+        .color-btn { width: auto; padding: 8px 12px; margin: 0; border-color: var(--orange); }
+        .publish-btn { background: var(--orange); color: black; border: none; padding: 10px 20px; border-radius: 5px; font-weight: 900; cursor: pointer; }
+        .play-btn { background: #13b981; color: #00170f; border: none; padding: 10px 16px; border-radius: 5px; font-weight: 900; cursor: pointer; }
+        .play-btn.stop { background: #ef4444; color: white; }
+
+        .test-overlay { position: absolute; inset: 0; pointer-events: none; }
+        .overlay-topbar { position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 8px; pointer-events: auto; }
+        .overlay-btn { border: 1px solid #39393d; border-radius: 10px; background: rgba(20, 20, 22, 0.9); color: white; min-width: 44px; height: 44px; padding: 0 12px; font-weight: 800; cursor: pointer; }
+        .overlay-btn.primary { background: rgba(242, 153, 121, 0.95); color: #1b120f; }
+        .menu-group { position: relative; }
+        .menu-panel { position: absolute; top: 50px; left: 0; display: flex; flex-direction: column; gap: 6px; min-width: 170px; background: rgba(20, 20, 22, 0.95); border: 1px solid #39393d; border-radius: 10px; padding: 8px; }
+        .menu-panel.hidden, .hidden { display: none; }
+
+        .mobile-controls { position: absolute; inset: 0; pointer-events: none; }
+        .joystick { position: absolute; left: 20px; bottom: 20px; width: 124px; height: 124px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.28); background: rgba(255,255,255,0.06); pointer-events: auto; touch-action: none; }
+        .joystick-knob { position: absolute; width: 56px; height: 56px; border-radius: 50%; background: rgba(255,255,255,0.32); left: 34px; top: 34px; }
+        .jump-btn { position: absolute; right: 24px; bottom: 38px; width: 72px; height: 72px; border-radius: 50%; font-size: 22px; pointer-events: auto; }
+        .logic-title { font-size: 12px; color: #9ca3af; margin: 0 0 8px; text-transform: uppercase; letter-spacing: 0.06em; }
+        #nodes-container { position: relative; height: 350px; border: 1px solid #33343a; border-radius: 8px; background: #0f1013; overflow: hidden; margin-bottom: 8px; }
+        .logic-node { position: absolute; width: 96px; height: 96px; border: 1px solid #42434a; border-radius: 10px; background: #202127; box-sizing: border-box; padding: 8px 6px 6px; user-select: none; touch-action: none; }
+        .logic-node.linking { border-color: var(--orange); box-shadow: 0 0 0 1px rgba(242, 153, 121, 0.6); }
+        .logic-node.event { background: #1f2937; border-color: #2f3f57; }
+        .logic-node-title { font-size: 11px; font-weight: 800; text-align: center; margin-top: 2px; }
+        .logic-node-id { font-size: 10px; color: #9ca3af; text-align: center; margin-top: 4px; }
+        .logic-port { position: absolute; bottom: 6px; width: 24px; height: 24px; border-radius: 6px; border: 1px solid #4f5058; background: #2f3038; color: #f3f4f6; font-weight: 900; cursor: pointer; line-height: 1; padding: 0; }
+        .logic-port.in { left: 6px; }
+        .logic-port.out { right: 6px; }
+        #links-container { min-height: 54px; border: 1px solid #33343a; border-radius: 8px; background: #101114; padding: 6px; font-size: 11px; color: #d1d5db; overflow: auto; max-height: 120px; }
+        .logic-link-row { padding: 2px 0; }
+        .logic-muted { color: #71717a; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <div style="font-weight: 900; color: var(--orange);">INFINITY STUDIO</div>
+    <div style="display:flex; gap:10px;">
+        <button onclick="setGizmo('translate')" class="btn toolbar-btn">✛</button>
+        <button onclick="setGizmo('rotate')" class="btn toolbar-btn">🔄</button>
+        <button onclick="setGizmo('scale')" class="btn toolbar-btn">↔</button>
+        <button id="color-btn" class="btn color-btn">🎨 Couleur</button>
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+        <button id="play-toggle" class="play-btn">▶ PLAY</button>
+        <button onclick="publish()" class="publish-btn">PUBLIER</button>
+    </div>
+</nav>
+
+<div class="main">
+    <div id="viewport">
+        <div id="test-overlay" class="test-overlay hidden">
+            <div class="overlay-topbar">
+                <div class="menu-group">
+                    <button id="menu-toggle" class="overlay-btn primary" title="Menu">🍊</button>
+                    <div id="menu-panel" class="menu-panel hidden">
+                        <button id="reset-btn" class="overlay-btn" style="width:100%;">Réinitialiser perso</button>
+                        <button id="quit-btn" class="overlay-btn" style="width:100%;">Quitter test</button>
+                    </div>
+                </div>
+                <button class="overlay-btn" title="Sac">🎒</button>
+                <button class="overlay-btn" title="Chat">💬</button>
+                <button class="overlay-btn" title="Émotes">😊</button>
+            </div>
+            <div id="mobile-controls" class="mobile-controls hidden">
+                <div id="joystick" class="joystick">
+                    <div id="joystick-knob" class="joystick-knob"></div>
+                </div>
+                <button id="jump-btn" class="overlay-btn jump-btn" title="Saut">⤴</button>
+            </div>
+        </div>
+    </div>
+    <div id="logic-panel">
+        <p class="logic-title">Visual Scripting (blocs carrés)</p>
+        <div id="nodes-container"></div>
+        <button class="btn" onclick="addCube()">+ AJOUTER BLOC</button>
+        <button class="btn" onclick="addLogicNode('event')" style="border-color:var(--orange);">+ BLOC ÉVÉNEMENT</button>
+        <button class="btn" onclick="addLogicNode('action')">+ BLOC ACTION</button>
+        <button id="clear-links-btn" class="btn">EFFACER LES LIENS</button>
+        <p class="logic-title" style="margin-top:10px;">Connexions</p>
+        <div id="links-container"></div>
+    </div>
+</div>
+
+<script>
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1200);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    document.getElementById('viewport').appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    const transform = new THREE.TransformControls(camera, renderer.domElement);
+    scene.add(transform);
+    transform.addEventListener('dragging-changed', (e) => controls.enabled = !e.value);
+
+    scene.add(new THREE.GridHelper(30, 30, 0x333333, 0x222222));
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.85);
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.35);
+    scene.add(ambientLight);
+    scene.add(directionalLight);
+    camera.position.set(10, 10, 10);
+    camera.lookAt(0, 0, 0);
+
+    let gameObjects = [];
+    let logicNodes = [];
+    let pendingLinkFrom = null;
+    let selectedObject = null;
+    let nextLogicNodeId = 1;
+    const raycaster = new THREE.Raycaster();
+    const pointer = new THREE.Vector2();
+
+    const playButton = document.getElementById('play-toggle');
+    const overlay = document.getElementById('test-overlay');
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuPanel = document.getElementById('menu-panel');
+    const resetBtn = document.getElementById('reset-btn');
+    const quitBtn = document.getElementById('quit-btn');
+    const mobileControls = document.getElementById('mobile-controls');
+    const joystick = document.getElementById('joystick');
+    const joystickKnob = document.getElementById('joystick-knob');
+    const jumpBtn = document.getElementById('jump-btn');
+    const colorBtn = document.getElementById('color-btn');
+    const nodesContainer = document.getElementById('nodes-container');
+    const linksContainer = document.getElementById('links-container');
+    const clearLinksBtn = document.getElementById('clear-links-btn');
+
+    const isMobile = window.matchMedia('(pointer: coarse)').matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const movementState = { forward: false, back: false, left: false, right: false, jump: false };
+    const joystickState = { active: false, x: 0, y: 0 };
+
+    const playerState = {
+        avatar: null,
+        playMode: false,
+        velocityY: 0,
+        onGround: false,
+        spawn: new THREE.Vector3(0, 0, 0),
+        size: { width: 1.6, height: 4.4, depth: 1.6 }
+    };
+
+    function resizeRenderer() {
+        const viewport = document.getElementById('viewport');
+        const width = viewport.clientWidth;
+        const height = viewport.clientHeight;
+        renderer.setSize(width, height);
+        camera.aspect = width / Math.max(height, 1);
+        camera.updateProjectionMatrix();
+    }
+
+    function hashString(value) {
+        let h = 0;
+        for (let i = 0; i < value.length; i++) h = ((h << 5) - h) + value.charCodeAt(i);
+        return Math.abs(h);
+    }
+
+    function getSessionPseudo() {
+        const cookies = document.cookie.split('; ').reduce((acc, curr) => {
+            const [name, ...rest] = curr.split('=');
+            if (!name) return acc;
+            acc[name] = rest.join('=');
+            return acc;
+        }, {});
+        return decodeURIComponent(cookies.pamplemouche_session || 'invité');
+    }
+
+    function getAvatarPalette() {
+        const seed = hashString(getSessionPseudo());
+        const skinTones = [0xffd3b0, 0xf4c89a, 0xe4b28a, 0xd89c70];
+        const shirts = [0x2563eb, 0x16a34a, 0xd97706, 0x9333ea, 0xef4444, 0x0891b2];
+        const pants = [0x334155, 0x1f2937, 0x4c1d95, 0x0f766e, 0x1e3a8a];
+        return {
+            skin: skinTones[seed % skinTones.length],
+            shirt: shirts[(seed >> 3) % shirts.length],
+            pants: pants[(seed >> 6) % pants.length]
+        };
+    }
+
+    function createAvatar() {
+        const palette = getAvatarPalette();
+        const g = new THREE.Group();
+        const mk = (geo, color) => new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color }));
+
+        const torso = mk(new THREE.BoxGeometry(1.4, 1.8, 0.8), palette.shirt);
+        torso.position.y = 2.3;
+
+        const head = mk(new THREE.SphereGeometry(0.55, 24, 24), palette.skin);
+        head.position.y = 3.8;
+
+        const armL = mk(new THREE.BoxGeometry(0.5, 1.5, 0.5), palette.skin);
+        armL.position.set(-0.95, 2.3, 0);
+
+        const armR = mk(new THREE.BoxGeometry(0.5, 1.5, 0.5), palette.skin);
+        armR.position.set(0.95, 2.3, 0);
+
+        const legL = mk(new THREE.BoxGeometry(0.6, 1.6, 0.6), palette.pants);
+        legL.position.set(-0.35, 0.8, 0);
+
+        const legR = mk(new THREE.BoxGeometry(0.6, 1.6, 0.6), palette.pants);
+        legR.position.set(0.35, 0.8, 0);
+
+        g.add(torso, head, armL, armR, legL, legR);
+        g.position.copy(playerState.spawn);
+        return g;
+    }
+
+    function selectObject(object) {
+        selectedObject = object || null;
+        if (selectedObject) transform.attach(selectedObject);
+        else transform.detach();
+    }
+
+    function pickObjectFromViewport(event) {
+        if (playerState.playMode) return;
+        const rect = renderer.domElement.getBoundingClientRect();
+        pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(pointer, camera);
+        const hit = raycaster.intersectObjects(gameObjects, false)[0];
+        selectObject(hit ? hit.object : null);
+    }
+
+    function setSelectedColor() {
+        if (!selectedObject) {
+            alert('Sélectionne un objet dans la scène avant de changer sa couleur.');
+            return;
+        }
+        const currentColor = selectedObject.material?.color?.getHexString?.() || 'cccccc';
+        const input = prompt('Couleur hexadécimale (ex: #ff8844)', `#${currentColor}`);
+        if (!input) return;
+        const hex = input.trim();
+        if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) {
+            alert('Couleur invalide. Utilise un code hexadécimal 6 caractères.');
+            return;
+        }
+        selectedObject.material.color.set(hex.startsWith('#') ? hex : `#${hex}`);
+    }
+
+    function addCube(data = null) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ color: 0xcccccc }));
+        if (data) {
+            mesh.position.set(data.pos.x, data.pos.y, data.pos.z);
+            mesh.rotation.set(data.rot.x, data.rot.y, data.rot.z);
+            mesh.scale.set(data.scale.x, data.scale.y, data.scale.z);
+            if (data.color) mesh.material.color.set(data.color);
+        }
+        scene.add(mesh);
+        gameObjects.push(mesh);
+        if (!playerState.playMode) selectObject(mesh);
+        return mesh;
+    }
+
+    function setGizmo(m) {
+        if (playerState.playMode) return;
+        transform.setMode(m);
+    }
+
+    function getPlayerBounds(position) {
+        const halfW = playerState.size.width / 2;
+        const halfD = playerState.size.depth / 2;
+        return new THREE.Box3(
+            new THREE.Vector3(position.x - halfW, position.y, position.z - halfD),
+            new THREE.Vector3(position.x + halfW, position.y + playerState.size.height, position.z + halfD)
+        );
+    }
+
+    function getWorldColliders() {
+        return gameObjects.map((obj) => new THREE.Box3().setFromObject(obj));
+    }
+
+    function collidesAt(position, colliders) {
+        const b = getPlayerBounds(position);
+        return colliders.some((c) => b.intersectsBox(c));
+    }
+
+    function resetPlayerPosition() {
+        if (!playerState.avatar) return;
+        playerState.avatar.position.copy(playerState.spawn);
+        playerState.velocityY = 0;
+        playerState.onGround = false;
+    }
+
+    function stopPlayMode() {
+        if (playerState.avatar) {
+            scene.remove(playerState.avatar);
+            playerState.avatar = null;
+        }
+        playerState.playMode = false;
+        movementState.forward = movementState.back = movementState.left = movementState.right = movementState.jump = false;
+        joystickState.active = false;
+        joystickState.x = 0;
+        joystickState.y = 0;
+        joystickKnob.style.transform = 'translate(0px, 0px)';
+
+        controls.enabled = true;
+        playButton.textContent = '▶ PLAY';
+        playButton.classList.remove('stop');
+        overlay.classList.add('hidden');
+        mobileControls.classList.add('hidden');
+        menuPanel.classList.add('hidden');
+    }
+
+    function startPlayMode() {
+        if (playerState.avatar) scene.remove(playerState.avatar);
+        playerState.avatar = createAvatar();
+        scene.add(playerState.avatar);
+
+        playerState.playMode = true;
+        playerState.velocityY = 0;
+        playerState.onGround = false;
+        controls.enabled = false;
+        transform.detach();
+
+        playButton.textContent = '■ STOP';
+        playButton.classList.add('stop');
+        overlay.classList.remove('hidden');
+        mobileControls.classList.toggle('hidden', !isMobile);
+        menuPanel.classList.add('hidden');
+    }
+
+    function togglePlayMode() {
+        if (playerState.playMode) stopPlayMode();
+        else startPlayMode();
+    }
+
+    function updatePlayer(dt) {
+        if (!playerState.playMode || !playerState.avatar) return;
+
+        const position = playerState.avatar.position.clone();
+        const colliders = getWorldColliders();
+        const move = new THREE.Vector3(0, 0, 0);
+
+        const forward = isMobile ? -joystickState.y : (movementState.forward ? 1 : 0) - (movementState.back ? 1 : 0);
+        const side = isMobile ? joystickState.x : (movementState.right ? 1 : 0) - (movementState.left ? 1 : 0);
+
+        if (forward !== 0 || side !== 0) {
+            const dir = new THREE.Vector3(side, 0, -forward).normalize();
+            const speed = 6.5;
+            move.addScaledVector(dir, speed * dt);
+            playerState.avatar.rotation.y = Math.atan2(dir.x, dir.z);
+        }
+
+        const candidateX = position.clone();
+        candidateX.x += move.x;
+        if (!collidesAt(candidateX, colliders)) position.x = candidateX.x;
+
+        const candidateZ = position.clone();
+        candidateZ.z += move.z;
+        if (!collidesAt(candidateZ, colliders)) position.z = candidateZ.z;
+
+        if (movementState.jump && playerState.onGround) {
+            playerState.velocityY = 9;
+            playerState.onGround = false;
+        }
+
+        playerState.velocityY -= 24 * dt;
+        const oldY = position.y;
+        position.y += playerState.velocityY * dt;
+
+        if (position.y <= 0) {
+            position.y = 0;
+            playerState.velocityY = 0;
+            playerState.onGround = true;
+        } else {
+            playerState.onGround = false;
+        }
+
+        const bounds = getPlayerBounds(position);
+        for (const box of colliders) {
+            if (!bounds.intersectsBox(box)) continue;
+            if (playerState.velocityY <= 0 && oldY >= box.max.y - 0.05) {
+                position.y = box.max.y;
+                playerState.velocityY = 0;
+                playerState.onGround = true;
+            } else {
+                position.y = oldY;
+                playerState.velocityY = 0;
+            }
+        }
+
+        playerState.avatar.position.copy(position);
+
+        const lookAt = position.clone().add(new THREE.Vector3(0, 2.2, 0));
+        const camTarget = position.clone().add(new THREE.Vector3(0, 4.2, 6.5));
+        camera.position.lerp(camTarget, 0.12);
+        camera.lookAt(lookAt);
+
+        movementState.jump = false;
+    }
+
+    async function publish() {
+        const name = new URLSearchParams(window.location.search).get('name') || 'Sans Titre';
+        const payload = {
+            title: name,
+            map: gameObjects.map(o => ({
+                pos: o.position,
+                rot: { x: o.rotation.x, y: o.rotation.y, z: o.rotation.z },
+                scale: o.scale,
+                color: o.material?.color?.getHex?.() || 0xcccccc
+            })),
+            logic: logicNodes.map((node) => ({ ...node, next: [...node.next] }))
+        };
+        const res = await fetch('https://infinity.pamplemouche.com/api/publish-game', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+            credentials: 'include'
+        });
+        if (res.ok) alert('✅ Sauvegardé !');
+    }
+
+    async function loadGame() {
+        const name = new URLSearchParams(window.location.search).get('name');
+        const res = await fetch('https://infinity.pamplemouche.com/api/get-games');
+        const games = await res.json();
+        const myGame = games.find(g => g.title === name);
+        if (myGame && myGame.map_data) {
+            const data = JSON.parse(myGame.map_data);
+            data.forEach(obj => addCube(obj));
+        }
+        if (myGame && myGame.logic_data) {
+            try {
+                const data = JSON.parse(myGame.logic_data);
+                if (Array.isArray(data)) {
+                    logicNodes = data.map((node) => ({
+                        id: String(node.id || `node_${nextLogicNodeId++}`),
+                        type: node.type === 'event' ? 'event' : 'action',
+                        label: String(node.label || 'Bloc'),
+                        x: Number.isFinite(node.x) ? node.x : 12,
+                        y: Number.isFinite(node.y) ? node.y : 12,
+                        next: Array.isArray(node.next) ? node.next.map(String) : []
+                    }));
+                    nextLogicNodeId = logicNodes.reduce((max, node) => {
+                        const parsed = Number(String(node.id).split('_')[1]);
+                        return Number.isFinite(parsed) ? Math.max(max, parsed + 1) : max;
+                    }, nextLogicNodeId);
+                }
+            } catch (_) {}
+        }
+        renderLogicNodes();
+    }
+
+    function renderLinksList() {
+        const rows = [];
+        logicNodes.forEach((from) => {
+            from.next.forEach((toId) => {
+                const to = logicNodes.find((n) => n.id === toId);
+                const toLabel = to ? to.label : toId;
+                rows.push(`<div class="logic-link-row">${from.label} → ${toLabel}</div>`);
+            });
+        });
+        linksContainer.innerHTML = rows.length ? rows.join('') : '<div class="logic-muted">Aucun lien pour le moment.</div>';
+    }
+
+    function renderLogicNodes() {
+        nodesContainer.innerHTML = '';
+        logicNodes.forEach((node) => {
+            const element = document.createElement('div');
+            element.className = `logic-node ${node.type}${pendingLinkFrom === node.id ? ' linking' : ''}`;
+            element.style.left = `${node.x}px`;
+            element.style.top = `${node.y}px`;
+            element.innerHTML = `
+                <div class="logic-node-title">${node.label}</div>
+                <div class="logic-node-id">${node.id}</div>
+                <button class="logic-port in" title="Entrée">◀</button>
+                <button class="logic-port out" title="Sortie">▶</button>
+            `;
+
+            const inputPort = element.querySelector('.logic-port.in');
+            const outputPort = element.querySelector('.logic-port.out');
+
+            outputPort.addEventListener('click', (event) => {
+                event.stopPropagation();
+                pendingLinkFrom = node.id;
+                renderLogicNodes();
+            });
+
+            inputPort.addEventListener('click', (event) => {
+                event.stopPropagation();
+                if (!pendingLinkFrom || pendingLinkFrom === node.id) return;
+                const from = logicNodes.find((n) => n.id === pendingLinkFrom);
+                if (!from) return;
+                if (!from.next.includes(node.id)) from.next.push(node.id);
+                pendingLinkFrom = null;
+                renderLogicNodes();
+            });
+
+            let dragOffsetX = 0;
+            let dragOffsetY = 0;
+            element.addEventListener('pointerdown', (event) => {
+                if (event.target.classList.contains('logic-port')) return;
+                event.preventDefault();
+                const rect = nodesContainer.getBoundingClientRect();
+                dragOffsetX = event.clientX - rect.left - node.x;
+                dragOffsetY = event.clientY - rect.top - node.y;
+                element.setPointerCapture(event.pointerId);
+            });
+            element.addEventListener('pointermove', (event) => {
+                if (!element.hasPointerCapture(event.pointerId)) return;
+                const rect = nodesContainer.getBoundingClientRect();
+                const maxX = Math.max(0, rect.width - 96);
+                const maxY = Math.max(0, rect.height - 96);
+                node.x = Math.max(0, Math.min(maxX, event.clientX - rect.left - dragOffsetX));
+                node.y = Math.max(0, Math.min(maxY, event.clientY - rect.top - dragOffsetY));
+                element.style.left = `${node.x}px`;
+                element.style.top = `${node.y}px`;
+            });
+
+            nodesContainer.appendChild(element);
+        });
+        renderLinksList();
+    }
+
+    function addLogicNode(type = 'action') {
+        const node = {
+            id: `node_${nextLogicNodeId++}`,
+            type: type === 'event' ? 'event' : 'action',
+            label: type === 'event' ? 'Événement' : 'Action',
+            x: 12 + (logicNodes.length % 2) * 108,
+            y: 12 + (Math.floor(logicNodes.length / 2) % 3) * 108,
+            next: []
+        };
+        logicNodes.push(node);
+        renderLogicNodes();
+    }
+
+    document.addEventListener('keydown', (event) => {
+        if (!playerState.playMode || isMobile) return;
+        const key = event.key.toLowerCase();
+        if (key === 'z' || key === 'w') movementState.forward = true;
+        if (key === 's') movementState.back = true;
+        if (key === 'q' || key === 'a') movementState.left = true;
+        if (key === 'd') movementState.right = true;
+        if (event.code === 'Space') {
+            event.preventDefault();
+            movementState.jump = true;
+        }
+    });
+
+    document.addEventListener('keyup', (event) => {
+        const key = event.key.toLowerCase();
+        if (key === 'z' || key === 'w') movementState.forward = false;
+        if (key === 's') movementState.back = false;
+        if (key === 'q' || key === 'a') movementState.left = false;
+        if (key === 'd') movementState.right = false;
+    });
+
+    function updateJoystick(clientX, clientY) {
+        const rect = joystick.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        let dx = clientX - centerX;
+        let dy = clientY - centerY;
+        const maxDistance = rect.width * 0.35;
+        const distance = Math.hypot(dx, dy);
+        if (distance > maxDistance) {
+            dx = dx / distance * maxDistance;
+            dy = dy / distance * maxDistance;
+        }
+        joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
+        joystickState.x = dx / maxDistance;
+        joystickState.y = dy / maxDistance;
+    }
+
+    joystick.addEventListener('pointerdown', (event) => {
+        if (!playerState.playMode || !isMobile) return;
+        joystickState.active = true;
+        joystick.setPointerCapture(event.pointerId);
+        updateJoystick(event.clientX, event.clientY);
+    });
+
+    joystick.addEventListener('pointermove', (event) => {
+        if (!joystickState.active || !playerState.playMode || !isMobile) return;
+        updateJoystick(event.clientX, event.clientY);
+    });
+
+    const resetJoystick = () => {
+        joystickState.active = false;
+        joystickState.x = 0;
+        joystickState.y = 0;
+        joystickKnob.style.transform = 'translate(0px, 0px)';
+    };
+
+    joystick.addEventListener('pointerup', resetJoystick);
+    joystick.addEventListener('pointercancel', resetJoystick);
+
+    jumpBtn.addEventListener('pointerdown', (event) => {
+        event.preventDefault();
+        if (playerState.playMode && isMobile) movementState.jump = true;
+    });
+
+    playButton.addEventListener('click', togglePlayMode);
+    menuToggle.addEventListener('click', () => menuPanel.classList.toggle('hidden'));
+    resetBtn.addEventListener('click', resetPlayerPosition);
+    quitBtn.addEventListener('click', stopPlayMode);
+    colorBtn.addEventListener('click', setSelectedColor);
+    clearLinksBtn.addEventListener('click', () => {
+        logicNodes.forEach((node) => node.next = []);
+        pendingLinkFrom = null;
+        renderLogicNodes();
+    });
+    renderer.domElement.addEventListener('pointerdown', pickObjectFromViewport);
+
+    window.addEventListener('resize', resizeRenderer);
+
+    const clock = new THREE.Clock();
+    function animate() {
+        requestAnimationFrame(animate);
+        updatePlayer(clock.getDelta());
+        renderer.render(scene, camera);
+    }
+
+    resizeRenderer();
+    animate();
+    loadGame();
+</script>
+</body>
+</html>
